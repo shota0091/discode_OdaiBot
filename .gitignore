@@ -1,0 +1,9 @@
+# 仮想環境を除外
+venv/
+
+# .envファイルを除外（APIキーなどの機密情報）
+.env
+
+# Pythonキャッシュなど
+__pycache__/
+*.pyc
