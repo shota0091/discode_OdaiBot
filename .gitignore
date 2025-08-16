@@ -3,7 +3,7 @@ venv/
 
 # .envファイルを除外（APIキーなどの機密情報）
 .env
-
+img/
 # Pythonキャッシュなど
 __pycache__/
 *.pyc
