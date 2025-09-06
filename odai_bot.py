@@ -1,5 +1,5 @@
 import discord
-from discord.ext import commands
+from discord import app_commands
 import random
 import os
 from dotenv import load_dotenv
@@ -11,33 +11,22 @@ load_dotenv()
 TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 CHANNEL_ID = int(os.getenv("CHANNEL_ID"))
 
+# IntentsとClient初期化
 intents = discord.Intents.default()
 intents.message_content = True
-bot = commands.Bot(command_prefix='!', intents=intents)
+client = discord.Client(intents=intents)
+tree = app_commands.CommandTree(client)
 
-def seconds_until_target(target_hour, target_minute):
-    now = datetime.now()
-    target = datetime.combine(now.date(), time(target_hour, target_minute))
-    if target < now:
-        target = datetime.combine(now.date(), time(target_hour, target_minute))  # 翌日分にしない
-    return (target - now).total_seconds()
-
-async def send_odai():
-    await asyncio.sleep(seconds_until_target(8, 0))  # JST 8:00まで待機
-
-    channel = bot.get_channel(CHANNEL_ID)
-    if not channel:
-        print("チャンネルが見つかりません")
-        return
-
+# お題送信処理（共通化）
+async def send_odai_to_channel(channel):
     img_folder = 'img'
     if not os.path.exists(img_folder):
-        print("画像フォルダが見つかりません")
+        await channel.send("画像フォルダが見つかりません")
         return
 
     files = [f for f in os.listdir(img_folder) if os.path.isfile(os.path.join(img_folder, f))]
     if not files:
-        print("画像がありません")
+        await channel.send("画像がありません")
         return
 
     selected_image = random.choice(files)
@@ -47,16 +36,34 @@ async def send_odai():
         await channel.send(file=discord.File(path))
         print(f"画像送信成功: {selected_image}")
     except Exception as e:
+        await channel.send(f"送信失敗: {e}")
         print(f"送信失敗: {e}")
 
-@bot.event
+# スラッシュコマンド登録
+@tree.command(name="odai", description="ランダムなお題画像を送信します")
+async def odai_command(interaction: discord.Interaction):
+    await interaction.response.defer()
+    channel = client.get_channel(CHANNEL_ID)
+    if not channel:
+        await interaction.followup.send("送信チャンネルが見つかりません")
+        return
+    await send_odai_to_channel(channel)
+    await interaction.followup.send("お題を送信しました。")
+
+# 起動処理
+@client.event
 async def on_ready():
-    print(f"ログイン成功: {bot.user}")
-    await send_odai()
-    await bot.close()  # 実行後に終了（Railway/Actions向け）
+    print(f"ログイン成功: {client.user}")
+    try:
+        synced = await tree.sync()
+        print(f"スラッシュコマンドを同期しました: {len(synced)}件")
+    except Exception as e:
+        print(f"コマンド同期失敗: {e}")
 
-@bot.command()
-async def odai(ctx):
-    await send_odai()
+    # GitHub Actionsなどで即時送信して終了
+    channel = client.get_channel(CHANNEL_ID)
+    if channel:
+        await send_odai_to_channel(channel)
+    await client.close()
 
-bot.run(TOKEN)
+client.run(TOKEN)
