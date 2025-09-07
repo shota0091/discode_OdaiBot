@@ -3,11 +3,11 @@ venv/
 templete/
 # .envファイルを除外（APIキーなどの機密情報）
 .env
-# Botで生成 or ユーザーアップロードされる一時ファイル群
-templates/
 img/
-generated_odai/
-uploads/
 # Pythonキャッシュなど
 __pycache__/
 *.pyc
+templates/
+
+generated_odai/
+uploads/
