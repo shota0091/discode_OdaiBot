@@ -1,8 +1,13 @@
 # 仮想環境を除外
 venv/
-
+templete/
 # .envファイルを除外（APIキーなどの機密情報）
 .env
+img/
 # Pythonキャッシュなど
 __pycache__/
 *.pyc
+templates/
+
+generated_odai/
+uploads/
