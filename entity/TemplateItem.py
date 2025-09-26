@@ -11,4 +11,17 @@ class TemplateItem:
 
     @staticmethod
     def from_row(row):
+        # DictCursor 対応
+        if isinstance(row, dict):
+            return TemplateItem(
+                row.get("id"),
+                row.get("guild_id"),
+                row.get("filename"),
+                row.get("display_name"),
+                row.get("file_path"),
+                row.get("file_size"),
+                row.get("created_by"),
+                row.get("created_at"),
+            )
+        # 位置タプル対応
         return TemplateItem(*row)

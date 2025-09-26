@@ -3,15 +3,14 @@ import os
 from repository.odai_repository import (
     insert_odai,
     ensure_guild_and_channel,
-    insert_image_file,
-    get_image_path_by_filename,
-    get_latest_templates,
-    get_template_by_display_name
+    insert_image_file
 )
 from entity.odai_item import OdaiItem
 from utils.file_helper import save_uploaded_image
-from utils.image_generator import generate_odai_image, generate_blank_image_with_text
+from utils.image_generator import generate_blank_image_with_text
 from utils.odai_image import generate_odai_image_with_title
+
+
 # /setup_guild コマンド用
 async def handle_setup_guild(interaction):
     guild_id = interaction.guild.id
@@ -27,6 +26,7 @@ async def handle_setup_guild(interaction):
         )
     except Exception as e:
         await interaction.response.send_message(f"❌ 登録失敗: {str(e)}", ephemeral=True)
+
 
 # /register_text コマンド用
 async def handle_register_text(interaction, content: str):
@@ -45,6 +45,7 @@ async def handle_register_text(interaction, content: str):
         await interaction.response.send_message(f"✅ お題を登録しました：\n```{content}```")
     except Exception as e:
         await interaction.response.send_message(f"❌ 登録中にエラーが発生しました: {str(e)}", ephemeral=True)
+
 
 # /register_image コマンド用
 async def handle_register_image(interaction, attachment: discord.Attachment):
@@ -80,7 +81,8 @@ async def handle_register_image(interaction, attachment: discord.Attachment):
             ephemeral=True
         )
 
-# /generate_odairegister_image コマンド用
+
+# /generate_odai コマンド用
 async def handle_generate_odai(
     interaction,
     text,
@@ -90,9 +92,11 @@ async def handle_generate_odai(
     font_size,
     shadow
 ):
-    use_template = bool(template_name)  # ← テンプレ指定があれば使う
+    bot = interaction.client
+    use_template = bool(template_name)
+
     if use_template:
-        template = get_template_by_display_name(interaction.guild_id, template_name)
+        template = bot.template_service.repo.get_by_name(interaction.guild.id, template_name)
         if not template:
             await interaction.response.send_message("テンプレートが見つかりません。", ephemeral=True)
             return
@@ -119,76 +123,4 @@ async def handle_generate_odai(
     await interaction.response.send_message(
         content="✅ 合成お題を登録しました！",
         file=file
-    )
-
-async def handle_register_template_image(interaction, name: str, image: discord.Attachment):
-    from utils.file_helper import save_template_image
-    from repository.odai_repository import insert_template_file
-    import os
-
-    try:
-        original_filename = image.filename
-        binary_data = await image.read()
-
-        # 保存
-        file_path, file_type, file_size = save_template_image(
-            guild_id=interaction.guild.id,
-            original_filename=original_filename,
-            binary_data=binary_data
-        )
-        filename = os.path.basename(file_path).replace("\\", "/")
-        relative_path = file_path.replace("\\", "/")
-
-        # DB登録
-        insert_template_file(
-            guild_id=interaction.guild.id,
-            filename=filename,
-            display_name=name,
-            file_path=relative_path,
-            file_size=file_size,
-            created_by=interaction.user.id
-        )
-
-        await interaction.response.send_message(
-            f"✅ テンプレート登録完了！\nテンプレ名: `{name}`\nファイル名: `{filename}`",
-            ephemeral=True
-        )
-    except Exception as e:
-        await interaction.response.send_message(
-            f"❌ 登録失敗: {str(e)}",
-            ephemeral=True
-        )
-
-async def handle_list_templates(interaction: discord.Interaction):
-    await interaction.response.defer()
-
-    templates = get_latest_templates(interaction.guild_id)
-
-    if not templates:
-        await interaction.followup.send("テンプレートが登録されていません。")
-        return
-
-    embeds = []
-    files = []
-
-    for i, template in enumerate(templates, start=1):
-        file_path = os.path.join(template.file_path)  # 相対パス前提（例：templates/2025-09/xxxx.png）
-        if not os.path.exists(file_path):
-            continue  # ファイルが無いものはスキップ
-
-        file = discord.File(file_path, filename=os.path.basename(file_path))
-        embed = discord.Embed(title=f"{i}. {template.display_name}", color=discord.Color.orange())
-        embed.set_image(url=f"attachment://{os.path.basename(file_path)}")
-
-        embeds.append(embed)
-        files.append(file)
-
-    if not embeds:
-        await interaction.followup.send("❌ ファイルが見つかりませんでした")
-        return
-
-    await interaction.followup.send(
-        content=f"📦 登録済みテンプレート一覧（最大{len(embeds)}件）",
-        embeds=embeds,
-        files=files
     )
