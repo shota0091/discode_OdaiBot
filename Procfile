@@ -1,1 +1,0 @@
-start: python odai_bot.py
