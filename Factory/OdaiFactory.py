@@ -1,42 +1,37 @@
-import os
 from Repository.OdaiRepository import OdaiRepository
+from Repository.ScheduleRepository import ScheduleRepository
 from Service.NotifyServiceImpl import NotifyServiceImpl
 from Service.RegisterServiceImpl import RegisterServiceImpl
+from Service.ScheduleServiceImpl import ScheduleServiceImpl
+from Util.GuildDataPathResolver import GuildDataPathResolver
 
-"""
-お題Bot Factoryクラス
-"""
 class OdaiFactory:
-  _instance = None
 
-  def __new__(cls, jsonPath,image_dir):
-    if cls._instance is None:
-      cls._instance = super().__new__(cls)
+  def __init__(self, guild_id: int):
+    odai_json_path = GuildDataPathResolver.get_odaijson_path(guild_id)
+    schedule_json_path = GuildDataPathResolver.get_schedulejson_path(guild_id)
+    image_dir = GuildDataPathResolver.get_image_dir(guild_id)
 
-      repository = OdaiRepository(jsonPath)
+    odaiRepository = OdaiRepository(odai_json_path)
+    scheduleRepository = ScheduleRepository(schedule_json_path)
 
-      cls._instance.repository = repository 
-      cls._instance.registerService = RegisterServiceImpl(repository)
-      cls._instance.notifyService = NotifyServiceImpl(repository,image_dir)
+    self.odaiRepository = odaiRepository
+    self.scheduleRepository = scheduleRepository
+    self.registerService = RegisterServiceImpl(odaiRepository, image_dir)
+    self.notifyService = NotifyServiceImpl(odaiRepository, image_dir)
+    self.scheduleService = ScheduleServiceImpl(guild_id, scheduleRepository, self.notifyService)
 
-    return cls._instance
+  def getOdaiRepository(self):
+    return self.odaiRepository
+
+  def getscheduleRepository(self):
+    return self.scheduleRepository
   
-
-  def getRepository(self):  # ← ✅ 追加
-    return self.repository
-
-  """
-  RegisterService実行
-  Returns:
-            registerService: 登録実行クラス
-  """
   def getRegisterService(self):
     return self.registerService
   
-  """
-  NotifyService実行
-  Returns:
-            NotifyService: 通知実行クラス
-  """
   def getNotifyService(self):
     return self.notifyService
+  
+  def getScheduleService(self):
+    return self.scheduleService

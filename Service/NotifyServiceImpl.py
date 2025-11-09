@@ -1,46 +1,29 @@
-import os
-import random
-from Service.Interface.NotifyServiceInterface import NotifyServiceInterface
+import os, random
+from Interface.NotifyServiceInterface import NotifyServiceInterface
 from Repository.OdaiRepository import OdaiRepository
 
-"""
-お題送信処理クラス
-"""
 class NotifyServiceImpl(NotifyServiceInterface):
-    """
-    コンストラクタ
-    Args:
-        repository (OdaiRepository): JSONデータ操作クラス
-        image_dir (str): お題画像ディレクトリ
-    """
-    def __init__(self, repository: OdaiRepository, image_dir: str):
-
-        self.repository = repository
+    def __init__(self, odaiRepository: OdaiRepository, image_dir: str):
+        self.repo = odaiRepository  # ✅名前統一
         self.image_dir = image_dir
 
-    """
-    未使用のお題をランダム取得し、使用済みにセット
-    Returns:
-        str: お題画像パス
-    """
     def sendNotifyOdai(self) -> str:
-        odai_list = self.repository.loadAll()
-        unused_list = [o for o in odai_list if not o.used]
+        odai_list = self.repo.load()
+
+        # 未使用のお題を取得
+        unused_list = [o for o in odai_list if not o.get("used", False)]
 
         # 全て使ったらリセット
         if not unused_list:
             for o in odai_list:
-                o.used = False
+                o["used"] = False
+            self.repo.save(odai_list)
             unused_list = odai_list
 
-        selected = random.choice(unused_list)
+        # ランダム選択 & used=True
+        odai = random.choice(unused_list)
+        odai["used"] = True
+        self.repo.save(odai_list)
 
-        # フラグ更新
-        for o in odai_list:
-            if o.file == selected.file:
-                o.used = True
-                break
-
-        self.repository.saveAll(odai_list)
-
-        return os.path.join(self.image_dir, selected.file)
+        filename = odai["file"]
+        return os.path.join(self.image_dir, filename)
