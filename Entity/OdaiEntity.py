@@ -1,7 +1,8 @@
-from dataclasses import dataclass,field
+from dataclasses import dataclass, field
 from datetime import datetime
-#odaiBotのEntityクラス
+
+@dataclass
 class OdaiEntity:
-  field: str
-  used: bool = False
-  added_at: str = field(default_factory=lambda: datetime.now().isoformat())
+    file: str
+    used: bool = False
+    added_at: str = field(default_factory=lambda: datetime.now().isoformat())

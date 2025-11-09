@@ -1,70 +1,66 @@
 import discord
 from discord.ui import View, Button
+from Factory.OdaiFactory import OdaiFactory
 from View.OdaiListView import OdaiListView
 
 class OdaiListViewUI(View):
-    def __init__(self, bot, odai_list, index, image_dir):
+    def __init__(self, odai_list, index, image_dir):
         super().__init__(timeout=180)
-        self.bot = bot
-        self.odai_list = odai_list
+        self.odai_list = odai_list  # dict list
         self.index = index
         self.image_dir = image_dir
 
-        # Buttons
-        self.prev_button = Button(label="⬅️ Prev")
-        self.next_button = Button(label="Next ➡️")
-        self.delete_button = Button(style=discord.ButtonStyle.danger, label="🗑️ Delete")
-
-        self.prev_button.callback = self.prev
-        self.next_button.callback = self.next
-        self.delete_button.callback = self.delete
-
-        self.add_item(self.prev_button)
-        self.add_item(self.next_button)
-        self.add_item(self.delete_button)
-
-    async def prev(self, interaction: discord.Interaction):
+    # ◀️ 前
+    @discord.ui.button(label="◀️", style=discord.ButtonStyle.secondary)
+    async def prev(self, interaction: discord.Interaction, button: Button):
         self.index = (self.index - 1) % len(self.odai_list)
         await self.update(interaction)
 
-    async def next(self, interaction: discord.Interaction):
+    # ▶️ 次
+    @discord.ui.button(label="▶️", style=discord.ButtonStyle.secondary)
+    async def next(self, interaction: discord.Interaction, button: Button):
         self.index = (self.index + 1) % len(self.odai_list)
         await self.update(interaction)
 
-    async def delete(self, interaction: discord.Interaction):
-        if not interaction.user.guild_permissions.manage_messages:
-          await interaction.response.send_message("❌ 権限がありません", ephemeral=True)
-          return
-        target = self.odai_list[self.index].file
+    # 🗑 削除
+    @discord.ui.button(label="🗑 削除", style=discord.ButtonStyle.danger)
+    async def delete(self, interaction: discord.Interaction, button: Button):
+        target = self.odai_list[self.index]["file"]
 
-        # 呼び出し
-        result = self.bot.registerService.remove_odai(target)
+        factory = OdaiFactory(interaction.guild_id)
+        register_service = factory.getRegisterService()
+        repo = factory.getOdaiRepository()
 
-        # ローカルリスト更新
-        del self.odai_list[self.index]
+        # 削除
+        register_service.remove_odai(target)
 
+        # 最新読み込み
+        self.odai_list = repo.load()
+
+        # 0件ならメッセージ消す
         if not self.odai_list:
             await interaction.response.edit_message(
-                content=f"{result}\n✅ 全てのお題が削除されました。",
+                content=f"🗑 {target} を削除しました（お題が0件です）",
                 embed=None,
                 attachments=[],
                 view=None
             )
             return
 
-        # 現在index調整
-        self.index %= len(self.odai_list)
+        # index補正
+        if self.index >= len(self.odai_list):
+            self.index = 0
 
-        await interaction.response.send_message(result, ephemeral=True)
         await self.update(interaction)
 
-    async def update(self, interaction):
+    async def update(self, interaction: discord.Interaction):
         odai = self.odai_list[self.index]
-        embed, file = OdaiListView.build_single(
-            odai, self.index, len(self.odai_list), self.image_dir
-        )
+        embed, file = OdaiListView.build(odai, self.index, len(self.odai_list), self.image_dir)
 
-        if file:
+        try:
             await interaction.response.edit_message(embed=embed, attachments=[file], view=self)
-        else:
-            await interaction.response.edit_message(embed=embed, view=self)
+        except discord.errors.InteractionResponded:
+            await interaction.followup.edit_message(
+                message_id=interaction.message.id,
+                embed=embed, attachments=[file], view=self
+            )
