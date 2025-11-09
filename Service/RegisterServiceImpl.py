@@ -28,7 +28,7 @@ class RegisterServiceImpl(RegisterServiceInterface):
         odai_list.append(OdaiEntity(file=filename).__dict__)
         self.repo.save(odai_list)
 
-        return True, f"✅ お題を登録しました：{filename}"
+        return True, f"お題を登録しました：{filename}"
 
     def remove_odai(self, filename: str) -> str:
         odai_list = self.repo.load()
