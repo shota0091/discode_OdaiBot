@@ -1,1 +1,1 @@
-start: python odai_bot.py
+worker: python odai_bot.py
