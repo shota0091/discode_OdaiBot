@@ -6,3 +6,8 @@ venv/
 # Pythonキャッシュなど
 __pycache__/
 *.pyc
+
+Util/Data/
+templates/
+Data/
+package.json
