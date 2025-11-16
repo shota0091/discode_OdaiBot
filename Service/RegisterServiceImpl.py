@@ -4,7 +4,7 @@ from Repository.OdaiRepository import OdaiRepository
 from Entity.OdaiEntity import OdaiEntity
 
 class RegisterServiceImpl(RegisterServiceInterface):
-    def __init__(self, repository: OdaiRepository, image_dir: str, max_count: int = 100):
+    def __init__(self, repository: OdaiRepository, image_dir: str, max_count: int = 200):
         self.repo = repository
         self.image_dir = image_dir  # ✅ repoではなくservice側が持つ
         self.max_count = max_count
