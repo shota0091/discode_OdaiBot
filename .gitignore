@@ -1,12 +1,22 @@
-# 仮想環境を除外
+# 仮想環境
 venv/
+.venv/
 
-# .envファイルを除外（APIキーなどの機密情報）
+# 環境変数・機密情報（.env.example は除外しない）
 .env
-# Pythonキャッシュなど
+**/.env
+
+# Python キャッシュ
 __pycache__/
 *.pyc
+*.pyo
+.pytest_cache/
 
+# IDE
+.vscode/
+.idea/
+
+# 旧データ（JSON・画像ファイル）
 Util/Data/
 templates/
 Data/

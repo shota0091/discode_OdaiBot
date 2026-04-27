@@ -1,0 +1,146 @@
+const UsersPage = {
+  _users: [],
+
+  render() {
+    return Layout.render('ユーザー管理', `
+      <div class="page-actions">
+        <button class="btn btn--primary" id="create-user-btn">＋ ユーザー作成</button>
+      </div>
+      <div id="users-table-root"><p class="loading">読み込み中...</p></div>
+    `);
+  },
+
+  async init() {
+    Layout.bindLogout();
+    if (localStorage.getItem('role') !== 'admin') {
+      document.getElementById('users-table-root').innerHTML = '<p class="text-error">この画面は管理者のみアクセス可能です。</p>';
+      return;
+    }
+    document.getElementById('create-user-btn').addEventListener('click', () => this._openForm());
+    await this._loadUsers();
+  },
+
+  async _loadUsers() {
+    try {
+      const res = await API.getUsers();
+      this._users = res.data;
+      this._renderTable();
+    } catch (err) {
+      document.getElementById('users-table-root').innerHTML = `<p class="text-error">${escapeHtml(err.message)}</p>`;
+    }
+  },
+
+  _renderTable() {
+    if (!this._users.length) {
+      document.getElementById('users-table-root').innerHTML = '<p class="text-muted">ユーザーが登録されていません。</p>';
+      return;
+    }
+    document.getElementById('users-table-root').innerHTML = `
+      <table class="table">
+        <thead>
+          <tr>
+            <th>ID</th><th>ユーザー名</th><th>役割</th><th>作成日時</th><th>更新日時</th><th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${this._users.map(u => `
+            <tr>
+              <td>${u.id}</td>
+              <td>${escapeHtml(u.username)}</td>
+              <td><span class="badge badge--${u.role}">${u.role === 'admin' ? '管理者' : 'ユーザー'}</span></td>
+              <td>${formatDate(u.created_at)}</td>
+              <td>${formatDate(u.updated_at)}</td>
+              <td class="table__actions">
+                <button class="btn btn--sm btn--secondary" data-edit="${u.id}">編集</button>
+                <button class="btn btn--sm btn--danger" data-delete="${u.id}">削除</button>
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+    document.querySelectorAll('[data-edit]').forEach(btn => {
+      const user = this._users.find(u => u.id === parseInt(btn.dataset.edit));
+      btn.addEventListener('click', () => this._openForm(user));
+    });
+    document.querySelectorAll('[data-delete]').forEach(btn => {
+      const user = this._users.find(u => u.id === parseInt(btn.dataset.delete));
+      btn.addEventListener('click', () => this._confirmDelete(user));
+    });
+  },
+
+  _openForm(user = null) {
+    const title = user ? 'ユーザー編集' : 'ユーザー作成';
+    const body = `
+      <div class="form">
+        ${!user ? `
+        <div class="form__group">
+          <label class="form__label">ユーザー名 <span class="required">*</span></label>
+          <input type="text" id="f-username" class="form__input" placeholder="ユーザー名" required>
+        </div>` : `<p class="form__note">ユーザー名: <strong>${escapeHtml(user.username)}</strong></p>`}
+        <div class="form__group">
+          <label class="form__label">パスワード${user ? '（変更する場合のみ入力）' : ' <span class="required">*</span>'}</label>
+          <input type="password" id="f-password" class="form__input" placeholder="8文字以上">
+        </div>
+        <div class="form__group">
+          <label class="form__label">役割 <span class="required">*</span></label>
+          <select id="f-role" class="form__select">
+            <option value="user" ${user?.role === 'user' ? 'selected' : ''}>ユーザー</option>
+            <option value="admin" ${user?.role === 'admin' ? 'selected' : ''}>管理者</option>
+          </select>
+        </div>
+        <div id="f-error" class="form__error" hidden></div>
+      </div>
+    `;
+    Modal.show(title, body, {
+      onConfirm: async () => {
+        const errorEl = document.getElementById('f-error');
+        errorEl.hidden = true;
+        const password = document.getElementById('f-password').value;
+        const role = document.getElementById('f-role').value;
+
+        if (password && password.length < 8) {
+          errorEl.textContent = 'パスワードは8文字以上で入力してください';
+          errorEl.hidden = false;
+          return;
+        }
+
+        try {
+          if (user) {
+            const data = {};
+            if (password) data.password = password;
+            if (role !== user.role) data.role = role;
+            await API.updateUser(user.id, data);
+          } else {
+            const username = document.getElementById('f-username').value.trim();
+            if (!username) { errorEl.textContent = 'ユーザー名を入力してください'; errorEl.hidden = false; return; }
+            if (!password) { errorEl.textContent = 'パスワードを入力してください'; errorEl.hidden = false; return; }
+            await API.createUser(username, password, role);
+          }
+          Modal.close();
+          Toast.success(user ? '更新しました' : '作成しました');
+          await this._loadUsers();
+        } catch (err) {
+          errorEl.textContent = err.message;
+          errorEl.hidden = false;
+        }
+      },
+    });
+  },
+
+  _confirmDelete(user) {
+    Modal.confirm(
+      'ユーザー削除',
+      `「${escapeHtml(user.username)}」を削除しますか？この操作は取り消せません。`,
+      async () => {
+        try {
+          await API.deleteUser(user.id);
+          Toast.success('削除しました');
+          await this._loadUsers();
+        } catch (err) {
+          Toast.error(err.message);
+        }
+      }
+    );
+  },
+};

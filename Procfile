@@ -1,1 +1,1 @@
-worker: python odai_bot.py
+worker: python OdaiBot/odai_bot.py
