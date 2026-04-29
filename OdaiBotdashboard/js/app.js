@@ -39,7 +39,10 @@ const Router = {
       location.hash = '#/login';
       return;
     }
-    if ((routeKey === '#/login' || routeKey === '#/register') && this._isAuth()) {
+    const hashQuery = (rawHash || '').includes('?') ? (rawHash || '').split('?')[1] : '';
+    const hashParams = new URLSearchParams(hashQuery);
+    const hasInvite = hashParams.has('invite');
+    if ((routeKey === '#/login' || (routeKey === '#/register' && !hasInvite)) && this._isAuth()) {
       location.hash = '#/dashboard';
       return;
     }
