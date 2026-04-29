@@ -152,6 +152,10 @@ async def before_odai_schedule_loop():
 @bot.event
 async def on_ready():
     try:
+        # 各ギルドの古いコマンドをクリアしてグローバルsync
+        for guild in bot.guilds:
+            bot.tree.clear_commands(guild=guild)
+            await bot.tree.sync(guild=guild)
         await bot.tree.sync()
         print(f"✅ Logged in as {bot.user}")
     except Exception as e:
