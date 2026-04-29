@@ -21,6 +21,8 @@ const LoginPage = {
           </form>
           <div class="auth-card__footer">
             <a href="#/register" class="link">招待登録はこちら</a>
+            <span class="auth-card__footer-sep">|</span>
+            <a href="#/reset-password" class="link">パスワードを忘れた場合はこちら</a>
           </div>
         </div>
       </div>

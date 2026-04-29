@@ -22,6 +22,7 @@ const Router = {
   routes: {
     '#/login':                LoginPage,
     '#/register':             RegisterPage,
+    '#/reset-password':       ResetPasswordPage,
     '#/dashboard':            DashboardPage,
     '#/dashboard/users':      UsersPage,
     '#/dashboard/tags':       TagsPage,
@@ -42,7 +43,8 @@ const Router = {
     const hashQuery = (rawHash || '').includes('?') ? (rawHash || '').split('?')[1] : '';
     const hashParams = new URLSearchParams(hashQuery);
     const hasInvite = hashParams.has('invite');
-    if ((routeKey === '#/login' || (routeKey === '#/register' && !hasInvite)) && this._isAuth()) {
+    const isInvitePage = (routeKey === '#/register' || routeKey === '#/reset-password') && hasInvite;
+    if ((routeKey === '#/login' || !isInvitePage && (routeKey === '#/register' || routeKey === '#/reset-password')) && this._isAuth()) {
       location.hash = '#/dashboard';
       return;
     }

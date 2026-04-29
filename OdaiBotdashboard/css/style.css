@@ -47,6 +47,8 @@ input, select, button, textarea { font-family: inherit; font-size: inherit; }
 .auth-card__header h2 { font-size: 22px; color: var(--text); margin-bottom: 6px; }
 .auth-card__header p { color: var(--text-muted); font-size: 15px; }
 .auth-card__footer { text-align: center; margin-top: 20px; color: var(--text-muted); font-size: 13px; }
+.auth-card__footer-sep { margin: 0 8px; }
+.auth-card__body { padding: 8px 0 4px; }
 
 /* Layout */
 .layout { display: flex; min-height: 100vh; }

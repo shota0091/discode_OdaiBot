@@ -96,6 +96,11 @@ class InviteResponse(BaseModel):
     expires_at: str
 
 
+class ResetPasswordRequest(BaseModel):
+    invite_token: str
+    password: str
+
+
 class SettingsRequest(BaseModel):
     bot_enabled: Optional[bool] = None
     timezone: Optional[str] = None

@@ -44,6 +44,13 @@ const API = {
       body: JSON.stringify(body),
     });
   },
+  async resetPassword(guildId, inviteToken, password) {
+    return this._fetch(`/api/guilds/${guildId}/auth/reset-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ invite_token: inviteToken, password }),
+    });
+  },
   async getGuildName(guildId) {
     return this._fetch(`/api/guilds/${guildId}/settings/name`);
   },

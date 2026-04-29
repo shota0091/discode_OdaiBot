@@ -23,6 +23,7 @@ from ..schemas import (
     InviteRegisterRequest,
     InviteResponse,
     LoginRequest,
+    ResetPasswordRequest,
     TokenResponse,
     UserCreateRequest,
     UserResponse,
@@ -122,6 +123,36 @@ def register_with_invite(guild_id: int, payload: InviteRegisterRequest):
         db.execute("UPDATE users SET api_token = %s WHERE id = %s", (access_token, user_id), commit=True)
 
     return {"access_token": access_token, "token_type": "bearer", "role": role}
+
+
+@router.post("/reset-password")
+def reset_password(guild_id: int, payload: ResetPasswordRequest):
+    invite = db.query_one(
+        "SELECT * FROM user_invites WHERE guild_id = %s AND invite_token = %s AND used = 0 AND expires_at > NOW()",
+        (guild_id, payload.invite_token),
+    )
+    if not invite:
+        raise HTTPException(status_code=404, detail="リセットトークンが無効または期限切れです")
+
+    _validate_password(payload.password)
+
+    user = db.query_one(
+        "SELECT u.id FROM users u JOIN user_guilds ug ON u.id = ug.user_id "
+        "WHERE ug.guild_id = %s AND u.username = %s",
+        (guild_id, invite["username"]),
+    )
+    if not user:
+        raise HTTPException(status_code=404, detail="ユーザーが見つかりません")
+
+    db.execute(
+        "UPDATE users SET password_hash = %s, updated_at = CURRENT_TIMESTAMP WHERE id = %s",
+        (hash_password(payload.password), user["id"]), commit=True,
+    )
+    db.execute(
+        "UPDATE user_invites SET used = 1, used_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = %s",
+        (invite["id"],), commit=True,
+    )
+    return {"message": "パスワードを更新しました"}
 
 
 @router.post("/invite", response_model=InviteResponse)
