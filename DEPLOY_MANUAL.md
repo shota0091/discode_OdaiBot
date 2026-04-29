@@ -72,12 +72,12 @@ sudo certbot --nginx -d odaibot-dashboard.com -d www.odaibot-dashboard.com
 
 ## Phase 3: コード展開
 
-### 7. 新コード（devブランチ）を取得
+### 7. 最新コード（mainブランチ）を取得
 ```bash
 cd ~/bots/discode_OdaiBot
 git fetch origin
-git checkout dev
-git reset --hard origin/dev
+git checkout main
+git reset --hard origin/main
 ```
 
 ### 8. Python依存パッケージインストール
@@ -103,7 +103,6 @@ MYSQL_USER=odaibot
 MYSQL_PASSWORD=（決めたパスワード）
 MYSQL_DATABASE=odai_bot
 DISCORD_BOT_TOKEN=（Discordトークン）
-SECRET_KEY=（openssl rand -hex 32 で生成）
 DASHBOARD_BASE_URL=https://odaibot-dashboard.com
 INVITE_EXPIRE_HOURS=1
 ```
@@ -125,23 +124,58 @@ FLUSH PRIVILEGES;
 EXIT;
 ```
 
-### 11. テーブル作成
+### 11. テーブル作成（新規インストール）
 ```bash
 cd ~/bots/discode_OdaiBot
 source venv/bin/activate
 python -m OdaiBotDB.setup_db
 ```
 
-作成されるテーブル：`guild_settings`, `users`, `user_invites`, `odai`, `tags`, `odai_tags`, `odai_usage`, `channels`, `schedules`, `post_history`
+作成されるテーブル：`guild_settings`, `users`, `user_guilds`, `user_invites`, `odai`, `tags`, `odai_tags`, `odai_usage`, `channels`, `schedules`, `post_history`
 
-### 12. 旧データ移行（JSONからMySQL）
+### 11-alt. 既存DBのスキーマ更新（運用中のサーバーへの適用）
+
+> users テーブルの構造変更（guild_id廃止 → user_guilds テーブルへ分離）が含まれる場合の手順。
+> **ユーザーデータが少ない場合は users テーブルを DROP して再作成する方が確実。**
+
+```bash
+# MySQLに接続
+mysql -u odaibot -p odai_bot
+```
+
+```sql
+-- usersテーブルを削除（ユーザーは再登録が必要）
+DROP TABLE IF EXISTS users;
+EXIT;
+```
+
+```bash
+# テーブル再作成（user_guilds も同時に作成される）
+python -m OdaiBotDB.setup_db
+```
+
+その後、Dashboard ユーザーは `/odai_dashboard` コマンドで再招待して再登録する。
+
+### 12. お題画像の登録
+
+**新規インストール時（JSONからの移行がない場合）:**
+```bash
+# ローカルPCから画像をサーバーへ転送
+scp -r -i ~/.ssh/id_ed25519 ./images shota@133.18.120.136:/home/shota/bots/discode_OdaiBot/images
+
+# サーバー上で一括登録
+cd ~/bots/discode_OdaiBot
+source venv/bin/activate
+python bulk_import_images.py --dry-run   # 確認
+python bulk_import_images.py             # 本番登録
+```
+
+**旧データ（JSON）からの移行がある場合:**
 ```bash
 python -m OdaiBotDB.migrate_from_json
 ```
-
 - `Data/{guild_id}_odai.json` と `templates/{guild_id}/` の画像をDBに移行
 - 冪等実行可能（重複スキップ）
-- 画像が見つからない場合はDashboardから手動アップロード
 
 ---
 
@@ -240,7 +274,7 @@ sudo systemctl reload nginx
 
 ## Phase 7: 自動デプロイ設定
 
-### 19. update_odaibot.sh 更新
+### 19. update_odaibot.sh
 ```bash
 vi ~/bots/update_odaibot.sh
 ```
@@ -253,7 +287,7 @@ cd /home/shota/bots/discode_OdaiBot
 
 echo "=== Pulling latest code ==="
 git fetch origin
-git reset --hard origin/dev
+git reset --hard origin/main
 
 echo "=== Updating venv packages ==="
 source venv/bin/activate
@@ -265,6 +299,15 @@ sudo systemctl restart odaibot
 sudo systemctl restart odaibotapi
 
 echo "=== Done ==="
+```
+
+sudoers設定（パスワードなしで systemctl restart を実行するため）：
+```bash
+sudo visudo -f /etc/sudoers.d/odaibot
+```
+```
+shota ALL=(ALL) NOPASSWD: /bin/systemctl restart odaibot
+shota ALL=(ALL) NOPASSWD: /bin/systemctl restart odaibotapi
 ```
 
 ### 20. GitHub Webhook設定
@@ -299,7 +342,25 @@ curl https://odaibot-dashboard.com/api/guilds/{guild_id}/settings/name
 ```
 
 - Dashboard: https://odaibot-dashboard.com にアクセス
-- Discord: `/odai_dashboard` コマンドで招待リンク発行 → ユーザー登録 → ログイン
+- Discord: `/odai_dashboard` コマンドで招待リンク発行（引数なしで実行者のDiscord名が使われる）
+- 招待リンクをクリック → 初回はパスワード設定、2サーバー目以降は自動登録
+- ログイン後、複数サーバーに所属していればサイドバーのドロップダウンで切り替え可能
+
+---
+
+## ユーザー管理
+
+### Dashboard ユーザーの新規登録フロー
+1. Discordで `/odai_dashboard` を実行（引数なし → 実行者のDiscord名が自動採用）
+2. 任意で `role:user` を指定（デフォルト: admin）
+3. 発行された招待リンクをDMで送付
+4. ユーザーがリンクをクリック
+   - **初回登録**: パスワード入力フォームが表示される
+   - **他サーバーに登録済み**: パスワード入力不要、自動登録
+5. ログイン後、所属する全サーバーがサイドバーのドロップダウンに表示される
+
+### パスワードリセット（管理者操作）
+Dashboard → ユーザー管理 → 対象ユーザーの「編集」→ 新しいパスワードを入力して保存
 
 ---
 
@@ -307,5 +368,6 @@ curl https://odaibot-dashboard.com/api/guilds/{guild_id}/settings/name
 
 - `.env` は `.gitignore` で除外済み。Gitにpushしないこと
 - SSL証明書は90日ごとに自動更新される（certbotがcronで管理）
-- devブランチへのpushで自動デプロイが走る
-- 本番切り替え後は `update_odaibot.sh` の `origin/dev` を `origin/main` に変更すること
+- mainブランチへのpushで自動デプロイが走る
+- ユーザーはグローバル管理（`users` テーブル）＋サーバー別権限（`user_guilds` テーブル）で管理される
+- ユーザー削除はそのサーバーとの紐付けのみ削除（他サーバーのデータは保持される）
