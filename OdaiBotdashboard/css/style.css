@@ -209,6 +209,10 @@ input, select, button, textarea { font-family: inherit; font-size: inherit; }
 .table tbody tr:hover { background: #fafafa; }
 .table__actions { display: flex; gap: 6px; white-space: nowrap; }
 .table__filename { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sort-btn { background: none; border: none; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; padding: 0; }
+.sort-btn:hover { color: var(--primary); }
+.sort-icon { font-size: 11px; color: var(--text-muted); margin-left: 2px; }
+.sort-icon--active { color: var(--primary); }
 .table--info th { text-transform: none; font-size: 13px; width: 140px; }
 
 /* Form */

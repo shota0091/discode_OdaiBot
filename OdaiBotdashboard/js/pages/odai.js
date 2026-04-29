@@ -2,6 +2,8 @@ const OdaiPage = {
   _odai: [],
   _allTags: [],
   _selected: new Set(),
+  _sortKey: 'added_at',
+  _sortDir: 'desc',
 
   render() {
     return Layout.render('お題管理', `
@@ -76,21 +78,31 @@ const OdaiPage = {
       this._updateBulkBar();
       return;
     }
+    const sorted = [...this._odai].sort((a, b) => {
+      const av = (a[this._sortKey] ?? '').toString().toLowerCase();
+      const bv = (b[this._sortKey] ?? '').toString().toLowerCase();
+      const cmp = av < bv ? -1 : av > bv ? 1 : 0;
+      return this._sortDir === 'asc' ? cmp : -cmp;
+    });
+    const icon = (key) => {
+      if (this._sortKey !== key) return '<span class="sort-icon">⇅</span>';
+      return this._sortDir === 'asc' ? '<span class="sort-icon sort-icon--active">▲</span>' : '<span class="sort-icon sort-icon--active">▼</span>';
+    };
     document.getElementById('odai-table-root').innerHTML = `
       <div class="table-scroll">
         <table class="table">
           <thead>
             <tr>
               <th class="col-cb"><input type="checkbox" id="select-all" title="全選択"></th>
-              <th>ファイル名</th>
+              <th><button class="sort-btn" data-sort="filename">ファイル名 ${icon('filename')}</button></th>
               <th>タグ</th>
               <th>使用状況</th>
-              <th class="hide-mobile">登録日時</th>
+              <th class="hide-mobile"><button class="sort-btn" data-sort="added_at">登録日時 ${icon('added_at')}</button></th>
               <th>操作</th>
             </tr>
           </thead>
           <tbody>
-            ${this._odai.map(o => `
+            ${sorted.map(o => `
               <tr>
                 <td class="col-cb"><input type="checkbox" class="row-cb" data-id="${o.id}" ${this._selected.has(o.id) ? 'checked' : ''}></td>
                 <td class="table__filename">${escapeHtml(o.filename)}</td>
@@ -110,6 +122,19 @@ const OdaiPage = {
         </table>
       </div>
     `;
+
+    document.querySelectorAll('.sort-btn[data-sort]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const key = btn.dataset.sort;
+        if (this._sortKey === key) {
+          this._sortDir = this._sortDir === 'asc' ? 'desc' : 'asc';
+        } else {
+          this._sortKey = key;
+          this._sortDir = key === 'added_at' ? 'desc' : 'asc';
+        }
+        this._renderTable();
+      });
+    });
 
     document.getElementById('select-all').addEventListener('change', e => {
       if (e.target.checked) {
