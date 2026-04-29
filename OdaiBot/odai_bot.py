@@ -79,13 +79,12 @@ async def odai_dashboard(interaction: discord.Interaction, username: str = None,
         reset_token = make_token()
         expires_at = (datetime.now() + timedelta(hours=INVITE_EXPIRE_HOURS)).strftime("%Y-%m-%d %H:%M:%S")
         invite_repo.create_invite(interaction.guild_id, username, role, reset_token, expires_at)
+        login_url = f"{DASHBOARD_BASE_URL.rstrip('/')}#/login"
         reset_url = f"{DASHBOARD_BASE_URL.rstrip('/')}#/reset-password?guild_id={interaction.guild_id}&invite={reset_token}"
         await interaction.response.send_message(
-            f"🔑 パスワードリセットリンクを生成しました\n"
-            f"ユーザー名: `{username}`\n"
-            f"期限: {INVITE_EXPIRE_HOURS}時間\n"
-            f"リンク: {reset_url}\n"
-            "\nこのリンクを踏んで、新しいパスワードを設定してください。",
+            f"ℹ️ ユーザー `{username}` は既に登録されています\n\n"
+            f"🔐 ログインはこちら: {login_url}\n\n"
+            f"🔑 パスワードを忘れた場合はリセットリンク（期限: {INVITE_EXPIRE_HOURS}時間）:\n{reset_url}",
             ephemeral=True,
         )
         return
