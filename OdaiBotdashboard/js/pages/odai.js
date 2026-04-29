@@ -2,8 +2,6 @@ const OdaiPage = {
   _odai: [],
   _allTags: [],
   _selected: new Set(),
-  _imgCache: new Map(),
-  _observer: null,
 
   render() {
     return Layout.render('お題管理', `
@@ -58,7 +56,7 @@ const OdaiPage = {
       for (const id of this._selected) {
         if (!this._odai.some(o => o.id === id)) this._selected.delete(id);
       }
-      this._renderGrid();
+      this._renderTable();
     } catch (err) {
       document.getElementById('odai-table-root').innerHTML = `<p class="text-error">${escapeHtml(err.message)}</p>`;
     }
@@ -72,124 +70,80 @@ const OdaiPage = {
     this._loadOdai(filename, tag, used);
   },
 
-  _renderGrid() {
-    if (this._observer) {
-      this._observer.disconnect();
-      this._observer = null;
-    }
-
+  _renderTable() {
     if (!this._odai.length) {
       document.getElementById('odai-table-root').innerHTML = '<p class="text-muted">お題が登録されていません。</p>';
       this._updateBulkBar();
       return;
     }
-
     document.getElementById('odai-table-root').innerHTML = `
-      <div class="odai-grid-header">
-        <label class="odai-grid-select-all">
-          <input type="checkbox" id="select-all"> 全選択
-        </label>
-        <span class="text-muted" style="font-size:13px">${this._odai.length} 件</span>
-      </div>
-      <div class="odai-grid">
-        ${this._odai.map(o => `
-          <div class="odai-card ${this._selected.has(o.id) ? 'is-selected' : ''}" data-id="${o.id}">
-            <label class="odai-card__cb">
-              <input type="checkbox" class="row-cb" data-id="${o.id}" ${this._selected.has(o.id) ? 'checked' : ''}>
-            </label>
-            <div class="odai-card__img-wrap">
-              <div class="odai-card__placeholder">🖼️</div>
-              <img class="odai-card__img lazy-img" data-odai-id="${o.id}" alt="${escapeHtml(o.filename)}">
-              <div class="odai-card__overlay">
-                <button class="btn btn--sm btn--secondary" data-edit="${o.id}">編集</button>
-                <button class="btn btn--sm btn--danger" data-delete="${o.id}">削除</button>
-              </div>
-            </div>
-            <div class="odai-card__meta">
-              <div class="odai-card__filename" title="${escapeHtml(o.filename)}">${escapeHtml(o.filename)}</div>
-              <div class="odai-card__tags">
-                ${(o.tags || []).map(t => `<span class="tag-chip">${escapeHtml(t)}</span>`).join('')}
-              </div>
-              <span class="badge badge--${o.used ? 'used' : 'unused'}">${o.used ? '使用済み' : '未使用'}</span>
-            </div>
-          </div>
-        `).join('')}
+      <div class="table-scroll">
+        <table class="table">
+          <thead>
+            <tr>
+              <th class="col-cb"><input type="checkbox" id="select-all" title="全選択"></th>
+              <th>ファイル名</th>
+              <th>タグ</th>
+              <th>使用状況</th>
+              <th class="hide-mobile">登録日時</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${this._odai.map(o => `
+              <tr>
+                <td class="col-cb"><input type="checkbox" class="row-cb" data-id="${o.id}" ${this._selected.has(o.id) ? 'checked' : ''}></td>
+                <td class="table__filename">${escapeHtml(o.filename)}</td>
+                <td>${(o.tags || []).map(t => `<span class="tag-chip">${escapeHtml(t)}</span>`).join(' ')}</td>
+                <td>
+                  <span class="badge badge--${o.used ? 'used' : 'unused'}">${o.used ? '使用済み' : '未使用'}</span>
+                </td>
+                <td class="hide-mobile">${formatDate(o.added_at)}</td>
+                <td class="table__actions">
+                  <button class="btn btn--sm btn--ghost" data-preview="${o.id}" title="プレビュー">👁</button>
+                  <button class="btn btn--sm btn--secondary" data-edit="${o.id}">編集</button>
+                  <button class="btn btn--sm btn--danger" data-delete="${o.id}">削除</button>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
       </div>
     `;
 
-    // 全選択チェックボックス
-    const selectAll = document.getElementById('select-all');
-    selectAll.checked = this._odai.length > 0 && this._selected.size === this._odai.length;
-    selectAll.indeterminate = this._selected.size > 0 && this._selected.size < this._odai.length;
-    selectAll.addEventListener('change', e => {
+    document.getElementById('select-all').addEventListener('change', e => {
       if (e.target.checked) {
         this._odai.forEach(o => this._selected.add(o.id));
       } else {
         this._odai.forEach(o => this._selected.delete(o.id));
       }
       document.querySelectorAll('.row-cb').forEach(cb => { cb.checked = e.target.checked; });
-      document.querySelectorAll('.odai-card').forEach(card => {
-        card.classList.toggle('is-selected', e.target.checked);
-      });
       this._updateBulkBar();
     });
 
-    // 行チェックボックス
     document.querySelectorAll('.row-cb').forEach(cb => {
       cb.addEventListener('change', e => {
         const id = parseInt(e.target.dataset.id);
-        const card = e.target.closest('.odai-card');
-        if (e.target.checked) {
-          this._selected.add(id);
-          card.classList.add('is-selected');
-        } else {
-          this._selected.delete(id);
-          card.classList.remove('is-selected');
-        }
+        if (e.target.checked) this._selected.add(id);
+        else this._selected.delete(id);
         this._updateBulkBar();
       });
     });
 
-    // 編集・削除ボタン
+    document.querySelectorAll('[data-preview]').forEach(btn => {
+      const item = this._odai.find(o => o.id === parseInt(btn.dataset.preview));
+      btn.addEventListener('click', () => this._previewOdai(item));
+    });
     document.querySelectorAll('[data-edit]').forEach(btn => {
       const item = this._odai.find(o => o.id === parseInt(btn.dataset.edit));
-      btn.addEventListener('click', e => { e.stopPropagation(); this._openEditForm(item); });
+      btn.addEventListener('click', () => this._openEditForm(item));
     });
     document.querySelectorAll('[data-delete]').forEach(btn => {
       const item = this._odai.find(o => o.id === parseInt(btn.dataset.delete));
-      btn.addEventListener('click', e => { e.stopPropagation(); this._confirmDelete(item); });
+      btn.addEventListener('click', () => this._confirmDelete(item));
     });
 
-    // 遅延画像読み込み（Intersection Observer）
-    this._observer = new IntersectionObserver(entries => {
-      for (const entry of entries) {
-        if (!entry.isIntersecting) continue;
-        const img = entry.target;
-        const odaiId = parseInt(img.dataset.odaiId);
-        this._observer.unobserve(img);
-        this._loadImage(img, odaiId);
-      }
-    }, { rootMargin: '200px' });
-
-    document.querySelectorAll('.lazy-img').forEach(img => this._observer.observe(img));
-
     this._updateBulkBar();
-  },
-
-  async _loadImage(img, odaiId) {
-    try {
-      let url = this._imgCache.get(odaiId);
-      if (!url) {
-        url = await API.getOdaiImageUrl(odaiId);
-        this._imgCache.set(odaiId, url);
-      }
-      img.onload = () => {
-        img.classList.add('loaded');
-        const placeholder = img.closest('.odai-card__img-wrap').querySelector('.odai-card__placeholder');
-        if (placeholder) placeholder.style.display = 'none';
-      };
-      img.src = url;
-    } catch (_) {}
   },
 
   _updateBulkBar() {
@@ -266,6 +220,37 @@ const OdaiPage = {
           errorEl.hidden = false;
           confirmBtn.disabled = false;
           confirmBtn.textContent = '保存';
+        }
+      },
+    });
+  },
+
+  async _previewOdai(odai) {
+    Modal.show('プレビュー', `
+      <div id="preview-loading" class="loading">読み込み中...</div>
+      <div id="preview-img-wrap" class="preview-img-wrap" hidden>
+        <img id="preview-img" class="preview-img" alt="${escapeHtml(odai.filename)}">
+      </div>
+      <p class="form__note" style="margin-top:10px;word-break:break-all">${escapeHtml(odai.filename)}</p>
+    `, {
+      onOpen: async () => {
+        try {
+          const url = await API.getOdaiImageUrl(odai.id);
+          const img = document.getElementById('preview-img');
+          const wrap = document.getElementById('preview-img-wrap');
+          const loading = document.getElementById('preview-loading');
+          img.onload = () => {
+            loading.hidden = true;
+            wrap.hidden = false;
+            URL.revokeObjectURL(url);
+          };
+          img.onerror = () => {
+            loading.textContent = '画像の読み込みに失敗しました';
+          };
+          img.src = url;
+        } catch (err) {
+          const loading = document.getElementById('preview-loading');
+          if (loading) loading.textContent = '画像の取得に失敗しました';
         }
       },
     });
@@ -351,7 +336,6 @@ const OdaiPage = {
               failed.forEach(r => Toast.error(`${r.filename}: ${r.message}`));
             }
           }
-          this._imgCache.clear();
           await this._loadOdai();
         } catch (err) {
           errorEl.textContent = err.message;
@@ -410,7 +394,6 @@ const OdaiPage = {
       async () => {
         try {
           await API.deleteOdai(odai.id);
-          this._imgCache.delete(odai.id);
           Toast.success('削除しました');
           await this._loadOdai();
         } catch (err) {
