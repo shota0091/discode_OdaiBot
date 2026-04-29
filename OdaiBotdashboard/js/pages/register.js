@@ -13,7 +13,10 @@ const RegisterPage = {
             <h2>🤖 お題Bot Dashboard</h2>
             <p>招待登録</p>
           </div>
-          <form id="register-form" class="form">
+          <div id="register-status">
+            <p class="loading">確認中...</p>
+          </div>
+          <form id="register-form" class="form" style="display:none">
             <div class="form__group">
               <label class="form__label">サーバー名</label>
               <p id="guild-name-display" class="form__note" style="font-weight:600;font-size:15px;padding:6px 0;">読み込み中...</p>
@@ -21,11 +24,11 @@ const RegisterPage = {
             <input type="hidden" id="guild-id" value="${escapeHtml(guildId)}">
             <input type="hidden" id="invite-token" value="${escapeHtml(inviteToken)}">
             <div class="form__group">
-              <label class="form__label">パスワード</label>
+              <label class="form__label">パスワード <span class="required">*</span></label>
               <input type="password" id="password" class="form__input" placeholder="8文字以上" autocomplete="new-password" required>
             </div>
             <div class="form__group">
-              <label class="form__label">パスワード確認</label>
+              <label class="form__label">パスワード確認 <span class="required">*</span></label>
               <input type="password" id="password-confirm" class="form__input" placeholder="パスワード確認" autocomplete="new-password" required>
             </div>
             <div id="error-msg" class="form__error" hidden></div>
@@ -38,24 +41,73 @@ const RegisterPage = {
       </div>
     `;
   },
+
+  async _finalizeLogin(guildId, data) {
+    localStorage.setItem('access_token', data.access_token);
+    localStorage.setItem('role', data.role);
+    localStorage.setItem('user', JSON.stringify({ username: '' }));
+
+    try {
+      const guildsRes = await API.getGuilds();
+      const guilds = guildsRes.data || [];
+      localStorage.setItem('guilds', JSON.stringify(guilds));
+      const current = guilds.find(g => g.guild_id === guildId) || guilds[0];
+      if (current) {
+        localStorage.setItem('guild_id', current.guild_id);
+        localStorage.setItem('guild_name', current.guild_name || current.guild_id);
+        localStorage.setItem('role', current.role);
+      } else {
+        localStorage.setItem('guild_id', guildId);
+      }
+    } catch (_) {
+      localStorage.setItem('guild_id', guildId);
+    }
+  },
+
   async init() {
+    const hashStr = location.hash;
+    const queryStr = hashStr.includes('?') ? hashStr.split('?')[1] : '';
+    const params = new URLSearchParams(queryStr);
+    const guildId = params.get('guild_id') || '';
+    const inviteToken = params.get('invite') || '';
+    const statusEl = document.getElementById('register-status');
+
+    if (!inviteToken) {
+      statusEl.innerHTML = '<p class="text-error">招待トークンが指定されていません。招待リンクから再度アクセスしてください。</p>';
+      return;
+    }
+
+    // パスワードなしで自動登録を試みる（他サーバーに同名ユーザーが存在する場合）
+    try {
+      const data = await API.register(guildId, inviteToken);
+      await this._finalizeLogin(guildId, data);
+      Toast.success('登録が完了しました');
+      location.hash = '#/dashboard';
+      return;
+    } catch (err) {
+      if (err.message !== 'password_required') {
+        statusEl.innerHTML = `<p class="text-error">${escapeHtml(err.message)}</p>`;
+        return;
+      }
+    }
+
+    // 自動登録できなかった場合はパスワード入力フォームを表示
+    statusEl.style.display = 'none';
     const form = document.getElementById('register-form');
-    const errorEl = document.getElementById('error-msg');
-    const btn = document.getElementById('register-btn');
-    const guildId = document.getElementById('guild-id').value;
-    const nameEl = document.getElementById('guild-name-display');
+    form.style.display = '';
 
     try {
       const res = await API.getGuildName(guildId);
-      nameEl.textContent = res.guild_name || guildId;
+      document.getElementById('guild-name-display').textContent = res.guild_name || guildId;
     } catch (_) {
-      nameEl.textContent = guildId;
+      document.getElementById('guild-name-display').textContent = guildId;
     }
+
+    const errorEl = document.getElementById('error-msg');
+    const btn = document.getElementById('register-btn');
 
     form.addEventListener('submit', async e => {
       e.preventDefault();
-      const guildId = document.getElementById('guild-id').value.trim();
-      const inviteToken = document.getElementById('invite-token').value.trim();
       const password = document.getElementById('password').value;
       const passwordConfirm = document.getElementById('password-confirm').value;
 
@@ -71,38 +123,13 @@ const RegisterPage = {
         errorEl.hidden = false;
         return;
       }
-      if (!inviteToken) {
-        errorEl.textContent = '招待トークンが指定されていません。招待リンクから再度アクセスしてください。';
-        errorEl.hidden = false;
-        return;
-      }
 
       btn.disabled = true;
       btn.textContent = '登録中...';
 
       try {
         const data = await API.register(guildId, inviteToken, password);
-        localStorage.setItem('access_token', data.access_token);
-        localStorage.setItem('role', data.role);
-        localStorage.setItem('user', JSON.stringify({ username: '' }));
-
-        // 所属 guild 一覧を取得してサーバー切替に備える
-        try {
-          const guildsRes = await API.getGuilds();
-          const guilds = guildsRes.data || [];
-          localStorage.setItem('guilds', JSON.stringify(guilds));
-          const current = guilds.find(g => g.guild_id === guildId) || guilds[0];
-          if (current) {
-            localStorage.setItem('guild_id', current.guild_id);
-            localStorage.setItem('guild_name', current.guild_name || current.guild_id);
-            localStorage.setItem('role', current.role);
-          } else {
-            localStorage.setItem('guild_id', guildId);
-          }
-        } catch (_) {
-          localStorage.setItem('guild_id', guildId);
-        }
-
+        await this._finalizeLogin(guildId, data);
         Toast.success('登録が完了しました');
         location.hash = '#/dashboard';
       } catch (err) {

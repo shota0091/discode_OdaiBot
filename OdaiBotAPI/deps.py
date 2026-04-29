@@ -53,7 +53,9 @@ def make_token() -> str:
 
 def get_user_by_token(token: str, guild_id: int) -> Optional[dict]:
     return db.query_one(
-        "SELECT id, guild_id, username, role FROM users WHERE api_token = %s AND guild_id = %s",
+        "SELECT u.id, ug.guild_id, u.username, ug.role "
+        "FROM users u JOIN user_guilds ug ON u.id = ug.user_id "
+        "WHERE u.api_token = %s AND ug.guild_id = %s",
         (token, guild_id),
     )
 
@@ -78,4 +80,4 @@ def require_admin(guild_id: int, user: dict = Depends(get_current_user)) -> dict
 
 
 def has_guild_users(guild_id: int) -> bool:
-    return db.query_one("SELECT 1 FROM users WHERE guild_id = %s", (guild_id,)) is not None
+    return db.query_one("SELECT 1 FROM user_guilds WHERE guild_id = %s", (guild_id,)) is not None

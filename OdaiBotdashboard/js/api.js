@@ -35,11 +35,13 @@ const API = {
       body: JSON.stringify({ username, password }),
     });
   },
-  async register(guildId, inviteToken, password) {
+  async register(guildId, inviteToken, password = null) {
+    const body = { invite_token: inviteToken };
+    if (password !== null) body.password = password;
     return this._fetch(`/api/guilds/${guildId}/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ invite_token: inviteToken, password }),
+      body: JSON.stringify(body),
     });
   },
   async getGuildName(guildId) {

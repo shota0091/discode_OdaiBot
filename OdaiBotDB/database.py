@@ -174,15 +174,27 @@ class MySQLDatabase:
             """
             CREATE TABLE IF NOT EXISTS users (
                 id BIGINT AUTO_INCREMENT PRIMARY KEY,
-                guild_id BIGINT NOT NULL,
                 username VARCHAR(128) NOT NULL,
                 password_hash VARCHAR(256) NOT NULL,
-                role VARCHAR(32) NOT NULL DEFAULT 'user',
                 api_token VARCHAR(128),
                 created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                UNIQUE KEY uq_guild_username (guild_id, username),
+                UNIQUE KEY uq_username (username),
                 UNIQUE KEY uq_users_api_token (api_token)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+            """
+        )
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS user_guilds (
+                id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                user_id BIGINT NOT NULL,
+                guild_id BIGINT NOT NULL,
+                role VARCHAR(32) NOT NULL DEFAULT 'user',
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                UNIQUE KEY uq_user_guild (user_id, guild_id),
+                CONSTRAINT fk_user_guilds_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
             """
         )
@@ -216,6 +228,59 @@ class MySQLDatabase:
                 "ALTER TABLE guild_settings ADD COLUMN "
                 "guild_name VARCHAR(128) DEFAULT NULL AFTER guild_id"
             )
+        # --- Migration: users テーブルから guild_id / role を user_guilds へ移行 ---
+        cursor.execute(
+            "SELECT COUNT(*) FROM information_schema.COLUMNS "
+            "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = 'guild_id'"
+        )
+        (has_guild_id,) = cursor.fetchone()
+        if has_guild_id:
+            # 1. 既存 users データを user_guilds へ移す
+            cursor.execute(
+                "INSERT IGNORE INTO user_guilds (user_id, guild_id, role, created_at, updated_at) "
+                "SELECT id, guild_id, role, created_at, updated_at FROM users WHERE guild_id IS NOT NULL"
+            )
+            # 2. 重複ユーザー名がある場合 user_guilds を正規 ID (MIN) へ更新
+            cursor.execute(
+                "UPDATE user_guilds ug "
+                "INNER JOIN users u ON ug.user_id = u.id "
+                "INNER JOIN (SELECT username, MIN(id) AS min_id FROM users GROUP BY username) AS canon "
+                "  ON u.username = canon.username "
+                "SET ug.user_id = canon.min_id "
+                "WHERE ug.user_id != canon.min_id"
+            )
+            # 3. 非正規ユーザー（同名の重複行）を削除
+            cursor.execute(
+                "DELETE FROM users WHERE id NOT IN ("
+                "  SELECT min_id FROM (SELECT MIN(id) AS min_id FROM users GROUP BY username) AS t"
+                ")"
+            )
+            # 4. 古い複合インデックス削除
+            cursor.execute(
+                "SELECT COUNT(*) FROM information_schema.STATISTICS "
+                "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND INDEX_NAME = 'uq_guild_username'"
+            )
+            (has_idx,) = cursor.fetchone()
+            if has_idx:
+                cursor.execute("ALTER TABLE users DROP INDEX uq_guild_username")
+            # 5. username の UNIQUE KEY 追加
+            cursor.execute(
+                "SELECT COUNT(*) FROM information_schema.STATISTICS "
+                "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND INDEX_NAME = 'uq_username'"
+            )
+            (has_uq,) = cursor.fetchone()
+            if not has_uq:
+                cursor.execute("ALTER TABLE users ADD UNIQUE KEY uq_username (username)")
+            # 6. 不要カラム削除
+            cursor.execute("ALTER TABLE users DROP COLUMN guild_id")
+            cursor.execute(
+                "SELECT COUNT(*) FROM information_schema.COLUMNS "
+                "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = 'role'"
+            )
+            (has_role,) = cursor.fetchone()
+            if has_role:
+                cursor.execute("ALTER TABLE users DROP COLUMN role")
+
         cursor.execute("SET FOREIGN_KEY_CHECKS = 1;")
         connection.commit()
 

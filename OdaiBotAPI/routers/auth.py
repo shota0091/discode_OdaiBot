@@ -42,7 +42,9 @@ def _validate_password(password: str) -> None:
 @router.post("/login", response_model=TokenResponse)
 def login(guild_id: int, payload: LoginRequest):
     user = db.query_one(
-        "SELECT id, username, password_hash, role FROM users WHERE guild_id = %s AND username = %s",
+        "SELECT u.id, u.username, u.password_hash, ug.role "
+        "FROM users u JOIN user_guilds ug ON u.id = ug.user_id "
+        "WHERE ug.guild_id = %s AND u.username = %s",
         (guild_id, payload.username),
     )
     if not user or not verify_password(payload.password, user["password_hash"]):
@@ -59,8 +61,6 @@ def login(guild_id: int, payload: LoginRequest):
 
 @router.post("/register", response_model=TokenResponse)
 def register_with_invite(guild_id: int, payload: InviteRegisterRequest):
-    _validate_password(payload.password)
-
     invite = db.query_one(
         "SELECT * FROM user_invites WHERE guild_id = %s AND invite_token = %s AND used = 0 AND expires_at > NOW()",
         (guild_id, payload.invite_token),
@@ -68,22 +68,60 @@ def register_with_invite(guild_id: int, payload: InviteRegisterRequest):
     if not invite:
         raise HTTPException(status_code=404, detail="招待トークンが無効または期限切れです")
 
-    if db.query_one("SELECT id FROM users WHERE guild_id = %s AND username = %s", (guild_id, invite["username"])):
+    username = invite["username"]
+    role = invite["role"]
+
+    # すでにこの guild に登録済みかチェック
+    if db.query_one(
+        "SELECT 1 FROM users u JOIN user_guilds ug ON u.id = ug.user_id "
+        "WHERE ug.guild_id = %s AND u.username = %s",
+        (guild_id, username),
+    ):
         raise HTTPException(status_code=409, detail="このユーザー名は既に登録されています")
 
-    password_hash = hash_password(payload.password)
-    token = make_token()
+    # グローバルユーザーが既に存在するか確認（他サーバーに登録済み）
+    existing_user = db.query_one("SELECT id, api_token FROM users WHERE username = %s", (username,))
+
+    if existing_user:
+        # パスワード入力があれば更新、なければ既存パスワードを引き継ぐ
+        user_id = existing_user["id"]
+        if payload.password:
+            _validate_password(payload.password)
+            db.execute(
+                "UPDATE users SET password_hash = %s, updated_at = CURRENT_TIMESTAMP WHERE id = %s",
+                (hash_password(payload.password), user_id), commit=True,
+            )
+    else:
+        # 新規ユーザー → パスワード必須
+        if not payload.password:
+            raise HTTPException(status_code=400, detail="password_required")
+        _validate_password(payload.password)
+        cursor = db.execute(
+            "INSERT INTO users (username, password_hash, api_token) VALUES (%s, %s, %s)",
+            (username, hash_password(payload.password), make_token()), commit=True,
+        )
+        user_id = cursor.lastrowid
+
+    # このサーバーに紐付け
     db.execute(
-        "INSERT INTO users (guild_id, username, password_hash, role, api_token) VALUES (%s, %s, %s, %s, %s)",
-        (guild_id, invite["username"], password_hash, invite["role"], token),
-        commit=True,
+        "INSERT INTO user_guilds (user_id, guild_id, role) VALUES (%s, %s, %s)",
+        (user_id, guild_id, role), commit=True,
     )
+
+    # 招待を使用済みにする
     db.execute(
         "UPDATE user_invites SET used = 1, used_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = %s",
-        (invite["id"],),
-        commit=True,
+        (invite["id"],), commit=True,
     )
-    return {"access_token": token, "token_type": "bearer", "role": invite["role"]}
+
+    # トークンを返す（なければ新規発行）
+    user = db.query_one("SELECT api_token FROM users WHERE id = %s", (user_id,))
+    access_token = user["api_token"]
+    if not access_token:
+        access_token = make_token()
+        db.execute("UPDATE users SET api_token = %s WHERE id = %s", (access_token, user_id), commit=True)
+
+    return {"access_token": access_token, "token_type": "bearer", "role": role}
 
 
 @router.post("/invite", response_model=InviteResponse)
@@ -91,7 +129,11 @@ def create_invite(guild_id: int, payload: InviteCreateRequest, _user: dict = Dep
     if payload.role not in ("admin", "user"):
         raise HTTPException(status_code=400, detail="role は admin または user を指定してください")
 
-    if db.query_one("SELECT id FROM users WHERE guild_id = %s AND username = %s", (guild_id, payload.username)):
+    if db.query_one(
+        "SELECT 1 FROM users u JOIN user_guilds ug ON u.id = ug.user_id "
+        "WHERE ug.guild_id = %s AND u.username = %s",
+        (guild_id, payload.username),
+    ):
         raise HTTPException(status_code=409, detail="同名ユーザが既に存在します")
 
     expire_hours = int(os.getenv("INVITE_EXPIRE_HOURS", "24"))
@@ -108,7 +150,12 @@ def create_invite(guild_id: int, payload: InviteCreateRequest, _user: dict = Dep
 
 @router.get("/users", response_model=List[UserResponse], dependencies=[Depends(require_admin)])
 def list_users(guild_id: int):
-    return db.query("SELECT id, username, role, created_at, updated_at FROM users WHERE guild_id = %s", (guild_id,))
+    return db.query(
+        "SELECT u.id, u.username, ug.role, u.created_at, u.updated_at "
+        "FROM users u JOIN user_guilds ug ON u.id = ug.user_id "
+        "WHERE ug.guild_id = %s",
+        (guild_id,),
+    )
 
 
 @router.post("/users", response_model=UserResponse)
@@ -122,47 +169,67 @@ def create_user(
         if not current_user or current_user.get("role") != "admin":
             raise HTTPException(status_code=403, detail="管理者権限が必要です")
 
-    _validate_password(payload.password)
-
     if payload.role not in ("admin", "user"):
         raise HTTPException(status_code=400, detail="role は admin または user を指定してください")
 
-    if db.query_one("SELECT id FROM users WHERE guild_id = %s AND username = %s", (guild_id, payload.username)):
-        raise HTTPException(status_code=409, detail="同名ユーザが既に存在します")
+    existing = db.query_one("SELECT id FROM users WHERE username = %s", (payload.username,))
 
-    password_hash = hash_password(payload.password)
-    token = make_token()
-    cursor = db.execute(
-        "INSERT INTO users (guild_id, username, password_hash, role, api_token) VALUES (%s, %s, %s, %s, %s)",
-        (guild_id, payload.username, password_hash, payload.role, token),
-        commit=True,
+    if existing:
+        user_id = existing["id"]
+        if db.query_one("SELECT 1 FROM user_guilds WHERE user_id = %s AND guild_id = %s", (user_id, guild_id)):
+            raise HTTPException(status_code=409, detail="同名ユーザが既に存在します")
+    else:
+        _validate_password(payload.password)
+        cursor = db.execute(
+            "INSERT INTO users (username, password_hash, api_token) VALUES (%s, %s, %s)",
+            (payload.username, hash_password(payload.password), make_token()), commit=True,
+        )
+        user_id = cursor.lastrowid
+
+    db.execute(
+        "INSERT INTO user_guilds (user_id, guild_id, role) VALUES (%s, %s, %s)",
+        (user_id, guild_id, payload.role), commit=True,
     )
-    return db.query_one("SELECT id, username, role, created_at, updated_at FROM users WHERE id = %s", (cursor.lastrowid,))
+    return db.query_one(
+        "SELECT u.id, u.username, ug.role, u.created_at, u.updated_at "
+        "FROM users u JOIN user_guilds ug ON u.id = ug.user_id "
+        "WHERE u.id = %s AND ug.guild_id = %s",
+        (user_id, guild_id),
+    )
 
 
 @router.put("/users/{user_id}", response_model=UserResponse)
 def update_user(guild_id: int, user_id: int, payload: UserUpdateRequest, _user: dict = Depends(require_admin)):
-    if not db.query_one("SELECT id FROM users WHERE guild_id = %s AND id = %s", (guild_id, user_id)):
+    if not db.query_one(
+        "SELECT 1 FROM user_guilds WHERE user_id = %s AND guild_id = %s",
+        (user_id, guild_id),
+    ):
         raise HTTPException(status_code=404, detail="ユーザが見つかりません")
 
-    updates: list[tuple[str, Any]] = []
-    params: list[Any] = []
+    if not payload.password and not payload.role:
+        raise HTTPException(status_code=400, detail="更新する項目がありません")
+
     if payload.password:
         _validate_password(payload.password)
-        updates.append(("password_hash", hash_password(payload.password)))
-        params.append(updates[-1][1])
+        db.execute(
+            "UPDATE users SET password_hash = %s, updated_at = CURRENT_TIMESTAMP WHERE id = %s",
+            (hash_password(payload.password), user_id), commit=True,
+        )
     if payload.role:
         if payload.role not in ("admin", "user"):
             raise HTTPException(status_code=400, detail="role は admin または user を指定してください")
-        updates.append(("role", payload.role))
-        params.append(updates[-1][1])
-    if not updates:
-        raise HTTPException(status_code=400, detail="更新する項目がありません")
+        db.execute(
+            "UPDATE user_guilds SET role = %s, updated_at = CURRENT_TIMESTAMP "
+            "WHERE user_id = %s AND guild_id = %s",
+            (payload.role, user_id, guild_id), commit=True,
+        )
 
-    sql = "UPDATE users SET " + ", ".join(f"{col} = %s" for col, _ in updates) + ", updated_at = CURRENT_TIMESTAMP WHERE id = %s"
-    params.append(user_id)
-    db.execute(sql, tuple(params), commit=True)
-    return db.query_one("SELECT id, username, role, created_at, updated_at FROM users WHERE id = %s", (user_id,))
+    return db.query_one(
+        "SELECT u.id, u.username, ug.role, u.created_at, u.updated_at "
+        "FROM users u JOIN user_guilds ug ON u.id = ug.user_id "
+        "WHERE u.id = %s AND ug.guild_id = %s",
+        (user_id, guild_id),
+    )
 
 
 @router.delete("/users/{user_id}", status_code=204)
@@ -170,8 +237,15 @@ def delete_user(guild_id: int, user_id: int, current_user: dict = Depends(requir
     if current_user["id"] == user_id:
         raise HTTPException(status_code=400, detail="自分自身は削除できません")
 
-    if not db.query_one("SELECT id FROM users WHERE guild_id = %s AND id = %s", (guild_id, user_id)):
+    if not db.query_one(
+        "SELECT 1 FROM user_guilds WHERE user_id = %s AND guild_id = %s",
+        (user_id, guild_id),
+    ):
         raise HTTPException(status_code=404, detail="ユーザが見つかりません")
 
-    db.execute("DELETE FROM users WHERE guild_id = %s AND id = %s", (guild_id, user_id), commit=True)
+    # このサーバーとの紐付けのみ削除（他サーバーのデータは保持）
+    db.execute(
+        "DELETE FROM user_guilds WHERE user_id = %s AND guild_id = %s",
+        (user_id, guild_id), commit=True,
+    )
     return Response(status_code=204)

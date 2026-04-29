@@ -63,8 +63,10 @@ def _sync_guild_meta(factory: "OdaiFactory", guild: discord.Guild) -> None:
 
 @bot.tree.command(name="odai_dashboard", description="Dashboard 用招待リンクを生成します")
 @app_commands.default_permissions(administrator=True)
-@app_commands.describe(username="Dashboard にログインするユーザー名", role="ユーザー権限")
-async def odai_dashboard(interaction: discord.Interaction, username: str, role: str = "admin"):
+@app_commands.describe(username="Dashboard ユーザー名（省略時はコマンド実行者のDiscordユーザー名）", role="ユーザー権限")
+async def odai_dashboard(interaction: discord.Interaction, username: str = None, role: str = "admin"):
+    if username is None:
+        username = interaction.user.name
     factory = OdaiFactory(interaction.guild_id)
 
     # サーバー名とチャンネル情報を同期

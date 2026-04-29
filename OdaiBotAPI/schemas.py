@@ -83,7 +83,7 @@ class UserResponse(BaseModel):
 
 class InviteRegisterRequest(BaseModel):
     invite_token: str
-    password: str
+    password: Optional[str] = None
 
 
 class InviteCreateRequest(BaseModel):
