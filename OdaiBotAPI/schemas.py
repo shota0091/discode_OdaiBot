@@ -60,22 +60,26 @@ class TokenResponse(BaseModel):
     access_token: str
     token_type: str
     role: str
+    display_name: Optional[str] = None
 
 
 class UserCreateRequest(BaseModel):
     username: str
     password: str
     role: Optional[str] = "user"
+    display_name: Optional[str] = None
 
 
 class UserUpdateRequest(BaseModel):
     password: Optional[str] = None
     role: Optional[str] = None
+    display_name: Optional[str] = None
 
 
 class UserResponse(BaseModel):
     id: int
     username: str
+    display_name: Optional[str] = None
     role: str
     created_at: datetime
     updated_at: datetime
@@ -84,6 +88,7 @@ class UserResponse(BaseModel):
 class InviteRegisterRequest(BaseModel):
     invite_token: str
     password: Optional[str] = None
+    display_name: Optional[str] = None
 
 
 class InviteCreateRequest(BaseModel):
@@ -116,4 +121,5 @@ class GlobalLoginResponse(BaseModel):
     access_token: str
     token_type: str
     role: str
+    display_name: Optional[str] = None
     guilds: List[GuildInfo]

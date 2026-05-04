@@ -35,9 +35,13 @@ const API = {
       body: JSON.stringify({ username, password }),
     });
   },
-  async register(guildId, inviteToken, password = null) {
+  async getInviteInfo(guildId, token) {
+    return this._fetch(`/api/guilds/${guildId}/auth/invite-info?token=${encodeURIComponent(token)}`);
+  },
+  async register(guildId, inviteToken, password = null, displayName = null) {
     const body = { invite_token: inviteToken };
     if (password !== null) body.password = password;
+    if (displayName !== null) body.display_name = displayName;
     return this._fetch(`/api/guilds/${guildId}/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -67,11 +71,13 @@ const API = {
   async getUsers() {
     return this._fetch(`/api/guilds/${this._guildId()}/auth/users`, { headers: this._headers() });
   },
-  async createUser(username, password, role) {
+  async createUser(username, password, role, displayName = null) {
+    const body = { username, password, role };
+    if (displayName) body.display_name = displayName;
     return this._fetch(`/api/guilds/${this._guildId()}/auth/users`, {
       method: 'POST',
       headers: this._headers(),
-      body: JSON.stringify({ username, password, role }),
+      body: JSON.stringify(body),
     });
   },
   async updateUser(userId, data) {

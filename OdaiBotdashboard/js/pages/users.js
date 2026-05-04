@@ -23,7 +23,7 @@ const UsersPage = {
   async _loadUsers() {
     try {
       const res = await API.getUsers();
-      this._users = res.data;
+      this._users = Array.isArray(res) ? res : (res.data ?? []);
       this._renderTable();
     } catch (err) {
       document.getElementById('users-table-root').innerHTML = `<p class="text-error">${escapeHtml(err.message)}</p>`;
@@ -79,6 +79,10 @@ const UsersPage = {
           <input type="text" id="f-username" class="form__input" placeholder="ユーザー名" required>
         </div>` : `<p class="form__note">ユーザー名: <strong>${escapeHtml(user.username)}</strong></p>`}
         <div class="form__group">
+          <label class="form__label">表示名${user ? '（変更する場合のみ入力）' : ''}</label>
+          <input type="text" id="f-display-name" class="form__input" placeholder="未入力の場合はユーザー名を使用" value="${escapeHtml(user?.display_name || '')}">
+        </div>
+        <div class="form__group">
           <label class="form__label">パスワード${user ? '（変更する場合のみ入力）' : ' <span class="required">*</span>'}</label>
           <input type="password" id="f-password" class="form__input" placeholder="8文字以上">
         </div>
@@ -105,17 +109,19 @@ const UsersPage = {
           return;
         }
 
+        const displayName = document.getElementById('f-display-name').value.trim() || null;
         try {
           if (user) {
             const data = {};
             if (password) data.password = password;
             if (role !== user.role) data.role = role;
+            if (displayName !== (user.display_name || null)) data.display_name = displayName;
             await API.updateUser(user.id, data);
           } else {
             const username = document.getElementById('f-username').value.trim();
             if (!username) { errorEl.textContent = 'ユーザー名を入力してください'; errorEl.hidden = false; return; }
             if (!password) { errorEl.textContent = 'パスワードを入力してください'; errorEl.hidden = false; return; }
-            await API.createUser(username, password, role);
+            await API.createUser(username, password, role, displayName);
           }
           Modal.close();
           Toast.success(user ? '更新しました' : '作成しました');

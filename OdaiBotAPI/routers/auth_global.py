@@ -13,9 +13,13 @@ router = APIRouter(prefix="/api/auth", tags=["auth-global"])
 
 @router.post("/login", response_model=GlobalLoginResponse)
 def global_login(payload: LoginRequest):
+    try:
+        login_id = int(payload.username)
+    except ValueError:
+        login_id = -1
     user = db.query_one(
-        "SELECT id, username, password_hash FROM users WHERE username = %s",
-        (payload.username,),
+        "SELECT id, username, display_name, password_hash FROM users WHERE username = %s OR id = %s",
+        (payload.username, login_id),
     )
     if not user or not verify_password(payload.password, user["password_hash"]):
         raise HTTPException(status_code=401, detail="ユーザ名またはパスワードが正しくありません")
@@ -46,10 +50,12 @@ def global_login(payload: LoginRequest):
     if not guilds:
         raise HTTPException(status_code=403, detail="所属するサーバーが見つかりません")
 
+    display_name = user.get("display_name") or user["username"]
     return {
         "access_token": token,
         "token_type": "bearer",
         "role": guilds[0]["role"],
+        "display_name": display_name,
         "guilds": guilds,
     }
 

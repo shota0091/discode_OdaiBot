@@ -24,6 +24,11 @@ const RegisterPage = {
             <input type="hidden" id="guild-id" value="${escapeHtml(guildId)}">
             <input type="hidden" id="invite-token" value="${escapeHtml(inviteToken)}">
             <div class="form__group">
+              <label class="form__label">表示名</label>
+              <input type="text" id="display-name" class="form__input" placeholder="Discordの表示名（未入力なら自動設定）" autocomplete="nickname">
+              <small class="form__hint">ヘッダーに表示される名前です。未入力の場合はユーザー名が使われます。</small>
+            </div>
+            <div class="form__group">
               <label class="form__label">パスワード <span class="required">*</span></label>
               <input type="password" id="password" class="form__input" placeholder="8文字以上" autocomplete="new-password" required>
             </div>
@@ -45,7 +50,7 @@ const RegisterPage = {
   async _finalizeLogin(guildId, data) {
     localStorage.setItem('access_token', data.access_token);
     localStorage.setItem('role', data.role);
-    localStorage.setItem('user', JSON.stringify({ username: '' }));
+    localStorage.setItem('user', JSON.stringify({ username: data.display_name || '' }));
 
     try {
       const guildsRes = await API.getGuilds();
@@ -103,6 +108,14 @@ const RegisterPage = {
       document.getElementById('guild-name-display').textContent = guildId;
     }
 
+    try {
+      const info = await API.getInviteInfo(guildId, inviteToken);
+      if (info && info.username) {
+        document.getElementById('display-name').placeholder = info.username;
+        document.getElementById('display-name').value = info.username;
+      }
+    } catch (_) {}
+
     const errorEl = document.getElementById('error-msg');
     const btn = document.getElementById('register-btn');
 
@@ -128,7 +141,8 @@ const RegisterPage = {
       btn.textContent = '登録中...';
 
       try {
-        const data = await API.register(guildId, inviteToken, password);
+        const displayName = document.getElementById('display-name').value.trim() || null;
+        const data = await API.register(guildId, inviteToken, password, displayName);
         await this._finalizeLogin(guildId, data);
         Toast.success('登録が完了しました');
         location.hash = '#/dashboard';

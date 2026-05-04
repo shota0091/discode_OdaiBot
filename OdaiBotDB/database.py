@@ -224,6 +224,19 @@ class MySQLDatabase:
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
             """
         )
+        # display_name カラムが存在しない既存 DB にも対応するためマイグレーション
+        cursor.execute(
+            "SELECT COUNT(*) FROM information_schema.COLUMNS "
+            "WHERE TABLE_SCHEMA = DATABASE() "
+            "AND TABLE_NAME = 'users' "
+            "AND COLUMN_NAME = 'display_name'"
+        )
+        (col_count,) = cursor.fetchone()
+        if col_count == 0:
+            cursor.execute(
+                "ALTER TABLE users ADD COLUMN "
+                "display_name VARCHAR(128) DEFAULT NULL AFTER username"
+            )
         # guild_name カラムが存在しない既存 DB にも対応するためマイグレーション
         cursor.execute(
             "SELECT COUNT(*) FROM information_schema.COLUMNS "
