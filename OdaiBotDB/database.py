@@ -7,15 +7,24 @@ load_dotenv()
 
 class MySQLDatabase:
     def __init__(self):
-        settings = self._get_connection_settings()
-        self.conn = mysql.connector.connect(
-            host=settings["host"],
-            port=settings["port"],
-            user=settings["user"],
-            password=settings["password"],
-            database=settings["database"],
+        self._settings = self._get_connection_settings()
+        self.conn = self._connect()
+
+    def _connect(self):
+        return mysql.connector.connect(
+            host=self._settings["host"],
+            port=self._settings["port"],
+            user=self._settings["user"],
+            password=self._settings["password"],
+            database=self._settings["database"],
             autocommit=False,
         )
+
+    def _ensure_connection(self):
+        try:
+            self.conn.ping(reconnect=True, attempts=3, delay=1)
+        except Exception:
+            self.conn = self._connect()
 
     @staticmethod
     def _get_connection_settings() -> dict:
@@ -299,11 +308,13 @@ class MySQLDatabase:
         return cursor
 
     def query(self, sql: str, params: tuple = ()):  # noqa: B006
+        self._ensure_connection()
         self.conn.commit()  # 最新コミット済みデータを読むためスナップショットをリセット
         cursor = self.execute(sql, params)
         return cursor.fetchall()
 
     def query_one(self, sql: str, params: tuple = ()):  # noqa: B006
+        self._ensure_connection()
         self.conn.commit()  # 最新コミット済みデータを読むためスナップショットをリセット
         cursor = self.execute(sql, params)
         return cursor.fetchone()

@@ -37,6 +37,11 @@ class OdaiRepository:
         self.db.execute(
             "INSERT IGNORE INTO odai_usage (guild_id, channel_id, odai_id) VALUES (%s, %s, %s)",
             (guild_id, channel_id, odai_id),
+            commit=False,
+        )
+        self.db.execute(
+            "UPDATE odai SET used = 1 WHERE id = %s",
+            (odai_id,),
             commit=True,
         )
 
