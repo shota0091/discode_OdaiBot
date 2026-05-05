@@ -64,15 +64,25 @@ const UsersPage = {
           ${users.map(u => {
             const canEdit = isAdmin || u.id === currentUserId;
             const canDelete = isAdmin && u.id !== currentUserId;
+            const isLocked = u.login_locked || (u.locked_until && new Date(u.locked_until) > new Date());
+            const lockBadge = u.login_locked
+              ? '<span class="badge badge--error" title="管理者解除が必要">永久ロック</span>'
+              : isLocked
+                ? `<span class="badge badge--warning" title="${u.login_attempts}回失敗">一時ロック</span>`
+                : '';
             return `
             <tr>
               <td>${escapeHtml(u.username)}</td>
               <td>${escapeHtml(u.display_name || '')}</td>
-              <td><span class="badge badge--${u.role}">${u.role === 'admin' ? '管理者' : 'ユーザー'}</span></td>
+              <td>
+                <span class="badge badge--${u.role}">${u.role === 'admin' ? '管理者' : 'ユーザー'}</span>
+                ${lockBadge}
+              </td>
               <td>${formatDate(u.created_at)}</td>
               <td>${formatDate(u.updated_at)}</td>
               <td class="table__actions">
                 ${canEdit ? `<button class="btn btn--sm btn--secondary" data-edit="${u.id}">編集</button>` : ''}
+                ${isAdmin && isLocked ? `<button class="btn btn--sm btn--warning" data-unlock="${u.id}">解除</button>` : ''}
                 ${canDelete ? `<button class="btn btn--sm btn--danger" data-delete="${u.id}">削除</button>` : ''}
               </td>
             </tr>`;
@@ -83,6 +93,10 @@ const UsersPage = {
     document.querySelectorAll('[data-edit]').forEach(btn => {
       const user = users.find(u => u.id === parseInt(btn.dataset.edit));
       btn.addEventListener('click', () => this._openForm(user));
+    });
+    document.querySelectorAll('[data-unlock]').forEach(btn => {
+      const user = users.find(u => u.id === parseInt(btn.dataset.unlock));
+      btn.addEventListener('click', () => this._confirmUnlock(user));
     });
     document.querySelectorAll('[data-delete]').forEach(btn => {
       const user = users.find(u => u.id === parseInt(btn.dataset.delete));
@@ -155,6 +169,22 @@ const UsersPage = {
         }
       },
     });
+  },
+
+  _confirmUnlock(user) {
+    Modal.confirm(
+      'アカウントロック解除',
+      `「${escapeHtml(user.username)}」のロックを解除しますか？`,
+      async () => {
+        try {
+          await API.unlockUser(user.id);
+          Toast.success('ロックを解除しました');
+          await this._loadUsers();
+        } catch (err) {
+          Toast.error(err.message);
+        }
+      }
+    );
   },
 
   _confirmDelete(user) {

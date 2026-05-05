@@ -4,6 +4,13 @@ import os
 from datetime import datetime, timedelta
 from typing import Any, List, Optional
 
+_LOCKOUT_STEPS = [
+    (20, None),      # 20回以上 → 永久ロック
+    (15, 60),        # 15回以上 → 60分
+    (10, 10),        # 10回以上 → 10分
+    (5,  1),         # 5回以上  → 1分
+]
+
 from fastapi import APIRouter, Depends, HTTPException, Response
 from fastapi.security import HTTPAuthorizationCredentials
 
@@ -47,19 +54,52 @@ def login(guild_id: int, payload: LoginRequest):
     except ValueError:
         login_id = -1
     user = db.query_one(
-        "SELECT u.id, u.username, u.display_name, u.password_hash, ug.role "
+        "SELECT u.id, u.username, u.display_name, u.password_hash, u.login_attempts, u.locked_until, u.login_locked, ug.role "
         "FROM users u JOIN user_guilds ug ON u.id = ug.user_id "
         "WHERE ug.guild_id = %s AND (u.username = %s OR u.id = %s OR u.display_name = %s)",
         (guild_id, payload.username, login_id, payload.username),
     )
-    if not user or not verify_password(payload.password, user["password_hash"]):
+
+    if not user:
         raise HTTPException(status_code=401, detail="ユーザ名またはパスワードが正しくありません")
 
+    # 永久ロック
+    if user["login_locked"]:
+        raise HTTPException(status_code=403, detail="アカウントがロックされています。管理者にお問い合わせください")
+
+    # 一時ロック
+    if user["locked_until"] and user["locked_until"] > datetime.now():
+        remaining = int((user["locked_until"] - datetime.now()).total_seconds() / 60) + 1
+        raise HTTPException(status_code=403, detail=f"アカウントが一時的にロックされています。約{remaining}分後に再試行してください")
+
+    if not verify_password(payload.password, user["password_hash"]):
+        attempts = (user["login_attempts"] or 0) + 1
+        locked_until = None
+        login_locked = 0
+        for threshold, minutes in _LOCKOUT_STEPS:
+            if attempts >= threshold:
+                if minutes is None:
+                    login_locked = 1
+                else:
+                    locked_until = (datetime.now() + timedelta(minutes=minutes)).strftime("%Y-%m-%d %H:%M:%S")
+                break
+        db.execute(
+            "UPDATE users SET login_attempts = %s, locked_until = %s, login_locked = %s WHERE id = %s",
+            (attempts, locked_until, login_locked, user["id"]), commit=True,
+        )
+        if login_locked:
+            raise HTTPException(status_code=403, detail="ログイン試行回数の上限に達しました。管理者にお問い合わせください")
+        if locked_until:
+            for threshold, minutes in _LOCKOUT_STEPS:
+                if attempts >= threshold and minutes:
+                    raise HTTPException(status_code=403, detail=f"ログイン試行回数が上限を超えました。{minutes}分後に再試行してください")
+        raise HTTPException(status_code=401, detail=f"ユーザ名またはパスワードが正しくありません（{attempts}回失敗）")
+
+    # ログイン成功 → 試行回数リセット
     token = make_token()
     db.execute(
-        "UPDATE users SET api_token = %s, updated_at = CURRENT_TIMESTAMP WHERE id = %s",
-        (token, user["id"]),
-        commit=True,
+        "UPDATE users SET api_token = %s, login_attempts = 0, locked_until = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = %s",
+        (token, user["id"]), commit=True,
     )
     display_name = user.get("display_name") or user["username"]
     return {"access_token": token, "token_type": "bearer", "role": user["role"], "display_name": display_name, "user_id": user["id"]}
@@ -201,21 +241,18 @@ def create_invite(guild_id: int, payload: InviteCreateRequest, _user: dict = Dep
     return {"invite_token": invite_token, "expires_at": expires_at}
 
 
+_USER_SELECT = (
+    "SELECT u.id, u.username, u.display_name, ug.role, "
+    "u.login_attempts, u.locked_until, u.login_locked, u.created_at, u.updated_at "
+    "FROM users u JOIN user_guilds ug ON u.id = ug.user_id"
+)
+
+
 @router.get("/users", response_model=List[UserResponse])
 def list_users(guild_id: int, current_user: dict = Depends(get_current_user)):
     if current_user.get("role") == "admin":
-        return db.query(
-            "SELECT u.id, u.username, u.display_name, ug.role, u.created_at, u.updated_at "
-            "FROM users u JOIN user_guilds ug ON u.id = ug.user_id "
-            "WHERE ug.guild_id = %s",
-            (guild_id,),
-        )
-    return db.query(
-        "SELECT u.id, u.username, u.display_name, ug.role, u.created_at, u.updated_at "
-        "FROM users u JOIN user_guilds ug ON u.id = ug.user_id "
-        "WHERE ug.guild_id = %s AND u.id = %s",
-        (guild_id, current_user["id"]),
-    )
+        return db.query(f"{_USER_SELECT} WHERE ug.guild_id = %s", (guild_id,))
+    return db.query(f"{_USER_SELECT} WHERE ug.guild_id = %s AND u.id = %s", (guild_id, current_user["id"]))
 
 
 @router.post("/users", response_model=UserResponse)
@@ -251,12 +288,7 @@ def create_user(
         "INSERT INTO user_guilds (user_id, guild_id, role) VALUES (%s, %s, %s)",
         (user_id, guild_id, payload.role), commit=True,
     )
-    return db.query_one(
-        "SELECT u.id, u.username, u.display_name, ug.role, u.created_at, u.updated_at "
-        "FROM users u JOIN user_guilds ug ON u.id = ug.user_id "
-        "WHERE u.id = %s AND ug.guild_id = %s",
-        (user_id, guild_id),
-    )
+    return db.query_one(f"{_USER_SELECT} WHERE u.id = %s AND ug.guild_id = %s", (user_id, guild_id))
 
 
 @router.put("/users/{user_id}", response_model=UserResponse)
@@ -295,12 +327,18 @@ def update_user(guild_id: int, user_id: int, payload: UserUpdateRequest, current
             (payload.role, user_id, guild_id), commit=True,
         )
 
-    return db.query_one(
-        "SELECT u.id, u.username, u.display_name, ug.role, u.created_at, u.updated_at "
-        "FROM users u JOIN user_guilds ug ON u.id = ug.user_id "
-        "WHERE u.id = %s AND ug.guild_id = %s",
-        (user_id, guild_id),
+    return db.query_one(f"{_USER_SELECT} WHERE u.id = %s AND ug.guild_id = %s", (user_id, guild_id))
+
+
+@router.post("/users/{user_id}/unlock", response_model=UserResponse)
+def unlock_user(guild_id: int, user_id: int, _admin: dict = Depends(require_admin)):
+    if not db.query_one("SELECT 1 FROM user_guilds WHERE user_id = %s AND guild_id = %s", (user_id, guild_id)):
+        raise HTTPException(status_code=404, detail="ユーザが見つかりません")
+    db.execute(
+        "UPDATE users SET login_attempts = 0, locked_until = NULL, login_locked = 0 WHERE id = %s",
+        (user_id,), commit=True,
     )
+    return db.query_one(f"{_USER_SELECT} WHERE u.id = %s AND ug.guild_id = %s", (user_id, guild_id))
 
 
 @router.delete("/users/{user_id}", status_code=204)

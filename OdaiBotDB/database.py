@@ -373,6 +373,21 @@ class MySQLDatabase:
             if has_role:
                 cursor.execute("ALTER TABLE users DROP COLUMN role")
 
+        # login_attempts / locked_until / login_locked マイグレーション
+        for col, definition in [
+            ("login_attempts", "INT NOT NULL DEFAULT 0"),
+            ("locked_until",   "DATETIME NULL"),
+            ("login_locked",   "TINYINT(1) NOT NULL DEFAULT 0"),
+        ]:
+            cursor.execute(
+                "SELECT COUNT(*) FROM information_schema.COLUMNS "
+                "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = %s",
+                (col,),
+            )
+            (cnt,) = cursor.fetchone()
+            if cnt == 0:
+                cursor.execute(f"ALTER TABLE users ADD COLUMN {col} {definition}")
+
         cursor.execute("SET FOREIGN_KEY_CHECKS = 1;")
         connection.commit()
 

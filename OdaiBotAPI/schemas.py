@@ -85,6 +85,9 @@ class UserResponse(BaseModel):
     username: str
     display_name: Optional[str] = None
     role: str
+    login_attempts: int = 0
+    locked_until: Optional[datetime] = None
+    login_locked: bool = False
     created_at: datetime
     updated_at: datetime
 

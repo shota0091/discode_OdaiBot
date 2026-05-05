@@ -93,6 +93,12 @@ const API = {
       headers: this._headers(),
     });
   },
+  async unlockUser(userId) {
+    return this._fetch(`/api/guilds/${this._guildId()}/auth/users/${userId}/unlock`, {
+      method: 'POST',
+      headers: this._headers(),
+    });
+  },
 
   // Summary
   async getSummary() {
