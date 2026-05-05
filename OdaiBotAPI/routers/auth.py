@@ -62,7 +62,7 @@ def login(guild_id: int, payload: LoginRequest):
         commit=True,
     )
     display_name = user.get("display_name") or user["username"]
-    return {"access_token": token, "token_type": "bearer", "role": user["role"], "display_name": display_name}
+    return {"access_token": token, "token_type": "bearer", "role": user["role"], "display_name": display_name, "user_id": user["id"]}
 
 
 @router.post("/register", response_model=TokenResponse)
@@ -133,7 +133,7 @@ def register_with_invite(guild_id: int, payload: InviteRegisterRequest):
         access_token = make_token()
         db.execute("UPDATE users SET api_token = %s WHERE id = %s", (access_token, user_id), commit=True)
 
-    return {"access_token": access_token, "token_type": "bearer", "role": role, "display_name": display_name}
+    return {"access_token": access_token, "token_type": "bearer", "role": role, "display_name": display_name, "user_id": user_id}
 
 
 @router.post("/reset-password")
@@ -201,13 +201,20 @@ def create_invite(guild_id: int, payload: InviteCreateRequest, _user: dict = Dep
     return {"invite_token": invite_token, "expires_at": expires_at}
 
 
-@router.get("/users", response_model=List[UserResponse], dependencies=[Depends(require_admin)])
-def list_users(guild_id: int):
+@router.get("/users", response_model=List[UserResponse])
+def list_users(guild_id: int, current_user: dict = Depends(get_current_user)):
+    if current_user.get("role") == "admin":
+        return db.query(
+            "SELECT u.id, u.username, u.display_name, ug.role, u.created_at, u.updated_at "
+            "FROM users u JOIN user_guilds ug ON u.id = ug.user_id "
+            "WHERE ug.guild_id = %s",
+            (guild_id,),
+        )
     return db.query(
         "SELECT u.id, u.username, u.display_name, ug.role, u.created_at, u.updated_at "
         "FROM users u JOIN user_guilds ug ON u.id = ug.user_id "
-        "WHERE ug.guild_id = %s",
-        (guild_id,),
+        "WHERE ug.guild_id = %s AND u.id = %s",
+        (guild_id, current_user["id"]),
     )
 
 
@@ -253,7 +260,11 @@ def create_user(
 
 
 @router.put("/users/{user_id}", response_model=UserResponse)
-def update_user(guild_id: int, user_id: int, payload: UserUpdateRequest, _user: dict = Depends(require_admin)):
+def update_user(guild_id: int, user_id: int, payload: UserUpdateRequest, current_user: dict = Depends(get_current_user)):
+    is_admin = current_user.get("role") == "admin"
+    if not is_admin and current_user["id"] != user_id:
+        raise HTTPException(status_code=403, detail="他のユーザーの編集権限がありません")
+
     if not db.query_one(
         "SELECT 1 FROM user_guilds WHERE user_id = %s AND guild_id = %s",
         (user_id, guild_id),
@@ -275,7 +286,7 @@ def update_user(guild_id: int, user_id: int, payload: UserUpdateRequest, _user: 
             "UPDATE users SET display_name = %s, updated_at = CURRENT_TIMESTAMP WHERE id = %s",
             (dn, user_id), commit=True,
         )
-    if payload.role:
+    if payload.role and is_admin:
         if payload.role not in ("admin", "user"):
             raise HTTPException(status_code=400, detail="role は admin または user を指定してください")
         db.execute(

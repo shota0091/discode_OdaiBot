@@ -64,6 +64,7 @@ class TokenResponse(BaseModel):
     token_type: str
     role: str
     display_name: Optional[str] = None
+    user_id: Optional[int] = None
 
 
 class UserCreateRequest(BaseModel):

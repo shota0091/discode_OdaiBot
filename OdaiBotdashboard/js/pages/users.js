@@ -2,9 +2,13 @@ const UsersPage = {
   _users: [],
 
   render() {
+    const isAdmin = localStorage.getItem('role') === 'admin';
     return Layout.render('ユーザー管理', `
       <div class="page-actions">
-        <button class="btn btn--primary" id="create-user-btn">＋ ユーザー作成</button>
+        ${isAdmin ? `
+          <input type="text" id="user-search" class="form__input" placeholder="ユーザー名・表示名で検索" style="max-width:260px;">
+          <button class="btn btn--primary" id="create-user-btn">＋ ユーザー作成</button>
+        ` : ''}
       </div>
       <div id="users-table-root"><p class="loading">読み込み中...</p></div>
     `);
@@ -12,11 +16,13 @@ const UsersPage = {
 
   async init() {
     Layout.bindLogout();
-    if (localStorage.getItem('role') !== 'admin') {
-      document.getElementById('users-table-root').innerHTML = '<p class="text-error">この画面は管理者のみアクセス可能です。</p>';
-      return;
+    const isAdmin = localStorage.getItem('role') === 'admin';
+    if (isAdmin) {
+      document.getElementById('create-user-btn')?.addEventListener('click', () => this._openForm());
+      document.getElementById('user-search')?.addEventListener('input', e => {
+        this._renderTable(e.target.value.trim());
+      });
     }
-    document.getElementById('create-user-btn').addEventListener('click', () => this._openForm());
     await this._loadUsers();
   },
 
@@ -30,9 +36,21 @@ const UsersPage = {
     }
   },
 
-  _renderTable() {
-    if (!this._users.length) {
-      document.getElementById('users-table-root').innerHTML = '<p class="text-muted">ユーザーが登録されていません。</p>';
+  _renderTable(search = '') {
+    const isAdmin = localStorage.getItem('role') === 'admin';
+    const currentUserId = parseInt(localStorage.getItem('user_id') || '0');
+    const q = search.toLowerCase();
+    const users = q
+      ? this._users.filter(u =>
+          u.username.toLowerCase().includes(q) ||
+          (u.display_name || '').toLowerCase().includes(q)
+        )
+      : this._users;
+
+    if (!users.length) {
+      document.getElementById('users-table-root').innerHTML = q
+        ? `<p class="text-muted">「${escapeHtml(search)}」に一致するユーザーが見つかりません。</p>`
+        : '<p class="text-muted">ユーザーが登録されていません。</p>';
       return;
     }
     document.getElementById('users-table-root').innerHTML = `
@@ -43,7 +61,10 @@ const UsersPage = {
           </tr>
         </thead>
         <tbody>
-          ${this._users.map(u => `
+          ${users.map(u => {
+            const canEdit = isAdmin || u.id === currentUserId;
+            const canDelete = isAdmin && u.id !== currentUserId;
+            return `
             <tr>
               <td>${escapeHtml(u.username)}</td>
               <td>${escapeHtml(u.display_name || '')}</td>
@@ -51,25 +72,26 @@ const UsersPage = {
               <td>${formatDate(u.created_at)}</td>
               <td>${formatDate(u.updated_at)}</td>
               <td class="table__actions">
-                <button class="btn btn--sm btn--secondary" data-edit="${u.id}">編集</button>
-                <button class="btn btn--sm btn--danger" data-delete="${u.id}">削除</button>
+                ${canEdit ? `<button class="btn btn--sm btn--secondary" data-edit="${u.id}">編集</button>` : ''}
+                ${canDelete ? `<button class="btn btn--sm btn--danger" data-delete="${u.id}">削除</button>` : ''}
               </td>
-            </tr>
-          `).join('')}
+            </tr>`;
+          }).join('')}
         </tbody>
       </table>
     `;
     document.querySelectorAll('[data-edit]').forEach(btn => {
-      const user = this._users.find(u => u.id === parseInt(btn.dataset.edit));
+      const user = users.find(u => u.id === parseInt(btn.dataset.edit));
       btn.addEventListener('click', () => this._openForm(user));
     });
     document.querySelectorAll('[data-delete]').forEach(btn => {
-      const user = this._users.find(u => u.id === parseInt(btn.dataset.delete));
+      const user = users.find(u => u.id === parseInt(btn.dataset.delete));
       btn.addEventListener('click', () => this._confirmDelete(user));
     });
   },
 
   _openForm(user = null) {
+    const isAdmin = localStorage.getItem('role') === 'admin';
     const title = user ? 'ユーザー編集' : 'ユーザー作成';
     const body = `
       <div class="form">
@@ -86,13 +108,14 @@ const UsersPage = {
           <label class="form__label">パスワード${user ? '（変更する場合のみ入力）' : ' <span class="required">*</span>'}</label>
           <input type="password" id="f-password" class="form__input" placeholder="8文字以上">
         </div>
+        ${isAdmin ? `
         <div class="form__group">
           <label class="form__label">役割 <span class="required">*</span></label>
           <select id="f-role" class="form__select">
             <option value="user" ${user?.role === 'user' ? 'selected' : ''}>ユーザー</option>
             <option value="admin" ${user?.role === 'admin' ? 'selected' : ''}>管理者</option>
           </select>
-        </div>
+        </div>` : ''}
         <div id="f-error" class="form__error" hidden></div>
       </div>
     `;
@@ -101,7 +124,7 @@ const UsersPage = {
         const errorEl = document.getElementById('f-error');
         errorEl.hidden = true;
         const password = document.getElementById('f-password').value;
-        const role = document.getElementById('f-role').value;
+        const role = isAdmin ? document.getElementById('f-role').value : null;
 
         if (password && password.length < 8) {
           errorEl.textContent = 'パスワードは8文字以上で入力してください';
@@ -114,14 +137,14 @@ const UsersPage = {
           if (user) {
             const data = {};
             if (password) data.password = password;
-            if (role !== user.role) data.role = role;
+            if (role && role !== user.role) data.role = role;
             if (displayName !== (user.display_name || null)) data.display_name = displayName;
             await API.updateUser(user.id, data);
           } else {
             const username = document.getElementById('f-username').value.trim();
             if (!username) { errorEl.textContent = 'ユーザー名を入力してください'; errorEl.hidden = false; return; }
             if (!password) { errorEl.textContent = 'パスワードを入力してください'; errorEl.hidden = false; return; }
-            await API.createUser(username, password, role, displayName);
+            await API.createUser(username, password, role || 'user', displayName);
           }
           Modal.close();
           Toast.success(user ? '更新しました' : '作成しました');

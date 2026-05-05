@@ -50,6 +50,7 @@ const RegisterPage = {
   async _finalizeLogin(guildId, data) {
     localStorage.setItem('access_token', data.access_token);
     localStorage.setItem('role', data.role);
+    localStorage.setItem('user_id', data.user_id ?? '');
     localStorage.setItem('user', JSON.stringify({ username: data.display_name || '' }));
 
     try {
