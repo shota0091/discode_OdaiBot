@@ -16,7 +16,7 @@ const SettingsPage = {
           <h2 class="section__title">サーバー情報</h2>
           <table class="table table--info">
             <tbody>
-              <tr><th>Guild ID</th><td>${escapeHtml(guildId)}</td></tr>
+              <tr><th>サーバー名</th><td>${escapeHtml(s.guild_name || guildId)}</td></tr>
               <tr><th>Bot 状態</th><td><span class="badge badge--${s.bot_enabled ? 'success' : 'disabled'}">${s.bot_enabled ? 'ON' : 'OFF'}</span></td></tr>
               <tr><th>最終更新</th><td>${formatDate(s.updated_at)}</td></tr>
             </tbody>
