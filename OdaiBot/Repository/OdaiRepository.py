@@ -44,6 +44,16 @@ class OdaiRepository:
             (odai_id,),
             commit=True,
         )
+        channel = self.db.query_one(
+            "SELECT name FROM channels WHERE guild_id = %s AND channel_id = %s",
+            (guild_id, channel_id),
+        )
+        channel_label = f"#{channel['name']}" if channel else f"#{channel_id}"
+        self.db.execute(
+            "INSERT INTO odai_history (odai_id, guild_id, action, detail) VALUES (%s, %s, %s, %s)",
+            (odai_id, guild_id, "posted", channel_label),
+            commit=True,
+        )
 
     def reset_channel_usage(self, guild_id: int, channel_id: int):
         """チャンネルの投稿済み記録をリセットする（全件使い切り時に呼び出す）。"""
@@ -72,23 +82,23 @@ class OdaiRepository:
             (guild_id, filename),
         ) is not None
 
-    def add_odai(self, guild_id: int, filename: str, content: bytes, tags=None, storage_path: str | None = None):
+    def add_odai(self, guild_id: int, filename: str, content: bytes, tags=None, storage_path: str | None = None, created_by: int | None = None):
         if self.file_exists(guild_id, filename):
             return False, f"❌ 同名ファイルが既に存在します：{filename}"
 
         cursor = self.db.execute(
-            "INSERT INTO odai (guild_id, filename, storage_path, data) VALUES (%s, %s, %s, %s)",
-            (guild_id, filename, storage_path, content),
+            "INSERT INTO odai (guild_id, filename, storage_path, data, created_by) VALUES (%s, %s, %s, %s, %s)",
+            (guild_id, filename, storage_path, content, created_by),
             commit=True,
         )
         odai_id = cursor.lastrowid
 
         if tags:
             for tag_name in tags:
-                tag_id = self._ensure_tag(guild_id, tag_name)
+                tag_id = self._ensure_tag(guild_id, tag_name, created_by=created_by)
                 self.db.execute(
-                    "INSERT IGNORE INTO odai_tags (odai_id, tag_id) VALUES (%s, %s)",
-                    (odai_id, tag_id),
+                    "INSERT IGNORE INTO odai_tags (odai_id, tag_id, created_by) VALUES (%s, %s, %s)",
+                    (odai_id, tag_id, created_by),
                     commit=False,
                 )
             self.db.conn.commit()
@@ -117,7 +127,7 @@ class OdaiRepository:
 
         return f"🗑️ {filename} を削除しました（再登録可能）"
 
-    def _ensure_tag(self, guild_id: int, tag_name: str) -> int:
+    def _ensure_tag(self, guild_id: int, tag_name: str, created_by: int | None = None) -> int:
         row = self.db.query_one(
             "SELECT id FROM tags WHERE guild_id = %s AND name = %s",
             (guild_id, tag_name),
@@ -126,8 +136,8 @@ class OdaiRepository:
             return row["id"]
 
         cursor = self.db.execute(
-            "INSERT INTO tags (guild_id, name) VALUES (%s, %s)",
-            (guild_id, tag_name),
+            "INSERT INTO tags (guild_id, name, created_by) VALUES (%s, %s, %s)",
+            (guild_id, tag_name, created_by),
             commit=True,
         )
         return cursor.lastrowid

@@ -14,7 +14,10 @@ _MAX_FILE_SIZE = 8 * 1024 * 1024  # 8 MB
 
 def _get_odai_with_tags(guild_id: int, odai_id: int) -> dict | None:
     row = db.query_one(
-        "SELECT id, guild_id, filename, storage_path, used, added_at, deleted_at FROM odai WHERE guild_id = %s AND id = %s",
+        "SELECT o.id, o.guild_id, o.filename, o.storage_path, o.used, o.is_favorite, o.added_at, o.deleted_at, "
+        "o.created_by, COALESCE(u.display_name, u.username) AS created_by_name "
+        "FROM odai o LEFT JOIN users u ON u.id = o.created_by "
+        "WHERE o.guild_id = %s AND o.id = %s",
         (guild_id, odai_id),
     )
     if not row:
@@ -25,7 +28,10 @@ def _get_odai_with_tags(guild_id: int, odai_id: int) -> dict | None:
 
 def _get_odai_by_filename(guild_id: int, filename: str) -> dict | None:
     row = db.query_one(
-        "SELECT id, guild_id, filename, storage_path, used, added_at, deleted_at FROM odai WHERE guild_id = %s AND filename = %s",
+        "SELECT o.id, o.guild_id, o.filename, o.storage_path, o.used, o.is_favorite, o.added_at, o.deleted_at, "
+        "o.created_by, COALESCE(u.display_name, u.username) AS created_by_name "
+        "FROM odai o LEFT JOIN users u ON u.id = o.created_by "
+        "WHERE o.guild_id = %s AND o.filename = %s",
         (guild_id, filename),
     )
     if not row:
@@ -35,10 +41,16 @@ def _get_odai_by_filename(guild_id: int, filename: str) -> dict | None:
 
 
 @router.get("", dependencies=[Depends(get_current_user)])
-def list_odai(guild_id: int, filename: Optional[str] = None, tag: Optional[str] = None, used: Optional[bool] = None):
+def list_odai(guild_id: int, filename: Optional[str] = None, tag: Optional[str] = None, used: Optional[bool] = None, favorite: Optional[bool] = None):
     sql = (
-        "SELECT DISTINCT o.id, o.guild_id, o.filename, o.storage_path, o.used, o.added_at, o.deleted_at "
-        "FROM odai o"
+        "SELECT DISTINCT o.id, o.guild_id, o.filename, o.storage_path, o.used, o.is_favorite, o.added_at, o.deleted_at, "
+        "o.created_by, COALESCE(cu.display_name, cu.username) AS created_by_name, "
+        "COALESCE(uc.usage_count, 0) AS usage_count "
+        "FROM odai o "
+        "LEFT JOIN users cu ON cu.id = o.created_by "
+        "LEFT JOIN ("
+        "  SELECT odai_id, COUNT(DISTINCT channel_id) AS usage_count FROM odai_usage GROUP BY odai_id"
+        ") uc ON uc.odai_id = o.id"
     )
     params: list = []
 
@@ -60,17 +72,78 @@ def list_odai(guild_id: int, filename: Optional[str] = None, tag: Optional[str] 
         sql += " AND o.used = %s"
         params.append(1 if used else 0)
 
+    if favorite is not None:
+        sql += " AND o.is_favorite = %s"
+        params.append(1 if favorite else 0)
+
     rows = db.query(sql, tuple(params))
+
+    total_row = db.query_one(
+        "SELECT COUNT(DISTINCT channel_id) AS cnt FROM schedules WHERE guild_id = %s AND enabled = 1",
+        (guild_id,),
+    )
+    total_channels = total_row["cnt"] if total_row else 0
+
     for row in rows:
         row["tags"] = odai_repo.get_tags(row["id"])
+        row["total_channels"] = total_channels
     return {"data": rows}
 
 
-@router.post("", dependencies=[Depends(get_current_user)], status_code=201)
+@router.get("/{odai_id}/history", dependencies=[Depends(get_current_user)])
+def get_odai_history(guild_id: int, odai_id: int, page: int = 1, per_page: int = 5):
+    if not db.query_one("SELECT id FROM odai WHERE id = %s AND guild_id = %s", (odai_id, guild_id)):
+        raise HTTPException(status_code=404, detail="お題が見つかりません")
+
+    per_page = max(1, min(per_page, 50))
+    offset = (page - 1) * per_page
+
+    total_row = db.query_one(
+        "SELECT COUNT(*) AS cnt FROM odai_history WHERE odai_id = %s",
+        (odai_id,),
+    )
+    total = total_row["cnt"] if total_row else 0
+    total_pages = max(1, (total + per_page - 1) // per_page)
+
+    rows = db.query(
+        "SELECT h.id, h.action, h.detail, h.created_at, h.user_id, "
+        "COALESCE(u.display_name, u.username) AS user_name "
+        "FROM odai_history h LEFT JOIN users u ON u.id = h.user_id "
+        "WHERE h.odai_id = %s "
+        "ORDER BY h.created_at DESC "
+        "LIMIT %s OFFSET %s",
+        (odai_id, per_page, offset),
+    )
+    return {"data": rows, "total": total, "page": page, "per_page": per_page, "total_pages": total_pages}
+
+
+@router.get("/{odai_id}/usage", dependencies=[Depends(get_current_user)])
+def get_odai_usage(guild_id: int, odai_id: int):
+    if not db.query_one(
+        "SELECT id FROM odai WHERE id = %s AND guild_id = %s AND deleted_at IS NULL",
+        (odai_id, guild_id),
+    ):
+        raise HTTPException(status_code=404, detail="お題が見つかりません")
+
+    rows = db.query(
+        "SELECT ou.channel_id, c.name AS channel_name, ou.used_at "
+        "FROM odai_usage ou "
+        "LEFT JOIN channels c ON ou.guild_id = c.guild_id AND ou.channel_id = c.channel_id "
+        "WHERE ou.odai_id = %s "
+        "ORDER BY ou.used_at DESC",
+        (odai_id,),
+    )
+    for row in rows:
+        row["channel_id"] = str(row["channel_id"])
+    return {"data": rows}
+
+
+@router.post("", status_code=201)
 async def upload_odai(
     guild_id: int,
     file: UploadFile = File(...),
     tags: Optional[str] = Form(None),
+    current_user: dict = Depends(get_current_user),
 ):
     if file.content_type not in _ALLOWED_CONTENT_TYPES:
         raise HTTPException(status_code=400, detail="jpg / png / webp のみアップロード可能です")
@@ -80,25 +153,26 @@ async def upload_odai(
         raise HTTPException(status_code=400, detail="ファイルサイズは 8 MB 以下にしてください")
 
     parsed_tags = normalize_tags(tags)
-    success, message = odai_repo.add_odai(guild_id, file.filename, content, parsed_tags)
+    success, message = odai_repo.add_odai(guild_id, file.filename, content, parsed_tags, created_by=current_user["id"])
     if not success:
         raise HTTPException(status_code=409, detail=message)
 
     return {"data": _get_odai_by_filename(guild_id, file.filename)}
 
 
-@router.post("/import", dependencies=[Depends(get_current_user)], status_code=201)
+@router.post("/import", status_code=201)
 async def import_odai(
     guild_id: int,
     files: List[UploadFile] = File(...),
     tags: Optional[str] = Form(None),
     source_path: Optional[str] = Form(None),
+    current_user: dict = Depends(get_current_user),
 ):
     parsed_tags = normalize_tags(tags)
     results = []
     for upload in files:
         content = await upload.read()
-        success, message = odai_repo.add_odai(guild_id, upload.filename, content, parsed_tags, storage_path=source_path)
+        success, message = odai_repo.add_odai(guild_id, upload.filename, content, parsed_tags, storage_path=source_path, created_by=current_user["id"])
         item: dict = {"filename": upload.filename, "success": success, "message": message}
         if success:
             item["odai"] = _get_odai_by_filename(guild_id, upload.filename)
@@ -106,8 +180,8 @@ async def import_odai(
     return {"data": results}
 
 
-@router.put("/{odai_id}", dependencies=[Depends(get_current_user)])
-def update_odai(guild_id: int, odai_id: int, payload: OdaiUpdateRequest):
+@router.put("/{odai_id}")
+def update_odai(guild_id: int, odai_id: int, payload: OdaiUpdateRequest, current_user: dict = Depends(get_current_user)):
     if not db.query_one("SELECT id FROM odai WHERE id = %s AND guild_id = %s AND deleted_at IS NULL", (odai_id, guild_id)):
         raise HTTPException(status_code=404, detail="お題が見つかりません")
 
@@ -124,15 +198,31 @@ def update_odai(guild_id: int, odai_id: int, payload: OdaiUpdateRequest):
         db.execute("UPDATE odai SET filename = %s WHERE id = %s", (new_name, odai_id), commit=True)
 
     if payload.tags is not None:
+        old_tags = set(odai_repo.get_tags(odai_id))
+        new_tags = set(payload.tags)
         db.execute("DELETE FROM odai_tags WHERE odai_id = %s", (odai_id,), commit=True)
         for tag_name in payload.tags:
-            tag_id = odai_repo._ensure_tag(guild_id, tag_name)
+            tag_id = odai_repo._ensure_tag(guild_id, tag_name, created_by=current_user["id"])
             db.execute(
-                "INSERT IGNORE INTO odai_tags (odai_id, tag_id) VALUES (%s, %s)",
-                (odai_id, tag_id),
+                "INSERT IGNORE INTO odai_tags (odai_id, tag_id, created_by) VALUES (%s, %s, %s)",
+                (odai_id, tag_id, current_user["id"]),
                 commit=False,
             )
         db.conn.commit()
+        for tag_name in (new_tags - old_tags):
+            db.execute(
+                "INSERT INTO odai_history (odai_id, guild_id, action, detail, user_id) VALUES (%s, %s, %s, %s, %s)",
+                (odai_id, guild_id, "tagged", tag_name, current_user["id"]),
+                commit=False,
+            )
+        for tag_name in (old_tags - new_tags):
+            db.execute(
+                "INSERT INTO odai_history (odai_id, guild_id, action, detail, user_id) VALUES (%s, %s, %s, %s, %s)",
+                (odai_id, guild_id, "untagged", tag_name, current_user["id"]),
+                commit=False,
+            )
+        if (new_tags - old_tags) or (old_tags - new_tags):
+            db.conn.commit()
 
     if payload.used is not None:
         db.execute("UPDATE odai SET used = %s WHERE id = %s", (1 if payload.used else 0, odai_id), commit=True)
@@ -142,6 +232,14 @@ def update_odai(guild_id: int, odai_id: int, payload: OdaiUpdateRequest):
             db.execute("UPDATE odai SET deleted_at = CURRENT_TIMESTAMP WHERE id = %s", (odai_id,), commit=True)
         else:
             db.execute("UPDATE odai SET deleted_at = NULL WHERE id = %s", (odai_id,), commit=True)
+
+    if payload.is_favorite is not None:
+        db.execute("UPDATE odai SET is_favorite = %s WHERE id = %s", (1 if payload.is_favorite else 0, odai_id), commit=True)
+        db.execute(
+            "INSERT INTO odai_history (odai_id, guild_id, action, user_id) VALUES (%s, %s, %s, %s)",
+            (odai_id, guild_id, "favorited" if payload.is_favorite else "unfavorited", current_user["id"]),
+            commit=True,
+        )
 
     return {"data": _get_odai_with_tags(guild_id, odai_id)}
 

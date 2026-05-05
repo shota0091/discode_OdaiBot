@@ -124,15 +124,27 @@ const API = {
       headers: this._headers(),
     });
   },
+  async getTagDetail(tagId) {
+    return this._fetch(`/api/guilds/${this._guildId()}/tags/${tagId}/detail`, { headers: this._headers() });
+  },
 
   // Odai
-  async getOdai(filename = '', tag = '', used = null) {
+  async getOdai(filename = '', tag = '', favorite = null) {
     const params = new URLSearchParams();
     if (filename) params.append('filename', filename);
     if (tag) params.append('tag', tag);
-    if (used !== null) params.append('used', used);
+    if (favorite !== null) params.append('favorite', favorite);
     const qs = params.toString() ? `?${params}` : '';
     return this._fetch(`/api/guilds/${this._guildId()}/odai${qs}`, { headers: this._headers() });
+  },
+  async getOdaiUsage(odaiId) {
+    return this._fetch(`/api/guilds/${this._guildId()}/odai/${odaiId}/usage`, { headers: this._headers() });
+  },
+  async getOdaiHistory(odaiId, page = 1, perPage = 5) {
+    return this._fetch(
+      `/api/guilds/${this._guildId()}/odai/${odaiId}/history?page=${page}&per_page=${perPage}`,
+      { headers: this._headers() },
+    );
   },
   async uploadOdai(formData) {
     return this._fetch(`/api/guilds/${this._guildId()}/odai`, {

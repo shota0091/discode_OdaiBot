@@ -181,6 +181,20 @@ class MySQLDatabase:
         )
         cursor.execute(
             """
+            CREATE TABLE IF NOT EXISTS odai_history (
+                id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                odai_id BIGINT NOT NULL,
+                guild_id BIGINT NOT NULL,
+                action VARCHAR(32) NOT NULL,
+                detail VARCHAR(512) NULL,
+                user_id BIGINT NULL,
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                CONSTRAINT fk_odai_history_odai FOREIGN KEY (odai_id) REFERENCES odai(id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+            """
+        )
+        cursor.execute(
+            """
             CREATE TABLE IF NOT EXISTS users (
                 id BIGINT AUTO_INCREMENT PRIMARY KEY,
                 username VARCHAR(128) NOT NULL,
@@ -237,6 +251,51 @@ class MySQLDatabase:
                 "ALTER TABLE users ADD COLUMN "
                 "display_name VARCHAR(128) DEFAULT NULL AFTER username"
             )
+        # is_favorite カラムが存在しない既存 DB にも対応するためマイグレーション
+        cursor.execute(
+            "SELECT COUNT(*) FROM information_schema.COLUMNS "
+            "WHERE TABLE_SCHEMA = DATABASE() "
+            "AND TABLE_NAME = 'odai' "
+            "AND COLUMN_NAME = 'is_favorite'"
+        )
+        (col_count,) = cursor.fetchone()
+        if col_count == 0:
+            cursor.execute(
+                "ALTER TABLE odai ADD COLUMN "
+                "is_favorite TINYINT(1) NOT NULL DEFAULT 0"
+            )
+        # odai.created_by マイグレーション
+        cursor.execute(
+            "SELECT COUNT(*) FROM information_schema.COLUMNS "
+            "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'odai' AND COLUMN_NAME = 'created_by'"
+        )
+        (col_count,) = cursor.fetchone()
+        if col_count == 0:
+            cursor.execute("ALTER TABLE odai ADD COLUMN created_by BIGINT NULL")
+        # tags.created_by マイグレーション
+        cursor.execute(
+            "SELECT COUNT(*) FROM information_schema.COLUMNS "
+            "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'tags' AND COLUMN_NAME = 'created_by'"
+        )
+        (col_count,) = cursor.fetchone()
+        if col_count == 0:
+            cursor.execute("ALTER TABLE tags ADD COLUMN created_by BIGINT NULL")
+        # tags.is_favorite マイグレーション
+        cursor.execute(
+            "SELECT COUNT(*) FROM information_schema.COLUMNS "
+            "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'tags' AND COLUMN_NAME = 'is_favorite'"
+        )
+        (col_count,) = cursor.fetchone()
+        if col_count == 0:
+            cursor.execute("ALTER TABLE tags ADD COLUMN is_favorite TINYINT(1) NOT NULL DEFAULT 0")
+        # odai_tags.created_by マイグレーション
+        cursor.execute(
+            "SELECT COUNT(*) FROM information_schema.COLUMNS "
+            "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'odai_tags' AND COLUMN_NAME = 'created_by'"
+        )
+        (col_count,) = cursor.fetchone()
+        if col_count == 0:
+            cursor.execute("ALTER TABLE odai_tags ADD COLUMN created_by BIGINT NULL")
         # guild_name カラムが存在しない既存 DB にも対応するためマイグレーション
         cursor.execute(
             "SELECT COUNT(*) FROM information_schema.COLUMNS "

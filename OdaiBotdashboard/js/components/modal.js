@@ -1,9 +1,9 @@
 const Modal = {
-  show(title, bodyHTML, { confirmLabel = '保存', cancelLabel = 'キャンセル', onConfirm = null, onOpen = null } = {}) {
+  show(title, bodyHTML, { confirmLabel = '保存', cancelLabel = 'キャンセル', onConfirm = null, onOpen = null, className = '' } = {}) {
     const container = document.getElementById('modal-container');
     container.innerHTML = `
       <div class="modal-overlay" id="modal-overlay">
-        <div class="modal">
+        <div class="modal ${className}">
           <div class="modal__header">
             <h3 class="modal__title">${title}</h3>
             <button class="modal__close" id="modal-close">&times;</button>

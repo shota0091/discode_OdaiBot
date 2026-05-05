@@ -4,6 +4,7 @@ const OdaiPage = {
   _selected: new Set(),
   _sortKey: 'added_at',
   _sortDir: 'desc',
+  _filterStatus: '',
 
   render() {
     return Layout.render('お題管理', `
@@ -12,11 +13,13 @@ const OdaiPage = {
         <select id="filter-tag" class="form__select form__select--sm">
           <option value="">全タグ</option>
         </select>
-        <select id="filter-used" class="form__select form__select--sm">
+        <select id="filter-status" class="form__select form__select--sm">
           <option value="">全て</option>
-          <option value="false">未使用</option>
-          <option value="true">使用済み</option>
+          <option value="unused">未使用</option>
+          <option value="partial">一部使用済み</option>
+          <option value="used">使用済み</option>
         </select>
+        <button class="btn btn--ghost btn--sm" id="filter-fav-btn" title="お気に入りのみ表示">☆ お気に入り</button>
         <button class="btn btn--primary" id="upload-odai-btn">＋ お題追加</button>
       </div>
       <div id="bulk-action-bar" class="bulk-action-bar" hidden>
@@ -30,6 +33,9 @@ const OdaiPage = {
 
   async init() {
     Layout.bindLogout();
+    this._filterStatus = '';
+    this._filterFavoriteOnly = false;
+
     try {
       const res = await API.getTags();
       this._allTags = res.data;
@@ -44,16 +50,29 @@ const OdaiPage = {
 
     document.getElementById('filter-filename').addEventListener('input', () => this._applyFilter());
     document.getElementById('filter-tag').addEventListener('change', () => this._applyFilter());
-    document.getElementById('filter-used').addEventListener('change', () => this._applyFilter());
+    document.getElementById('filter-status').addEventListener('change', e => {
+      this._filterStatus = e.target.value;
+      this._renderTable();
+    });
+    document.getElementById('filter-fav-btn').addEventListener('click', () => {
+      this._filterFavoriteOnly = !this._filterFavoriteOnly;
+      const btn = document.getElementById('filter-fav-btn');
+      if (btn) {
+        btn.textContent = this._filterFavoriteOnly ? '★ お気に入り' : '☆ お気に入り';
+        btn.classList.toggle('btn--warning', this._filterFavoriteOnly);
+        btn.classList.toggle('btn--ghost', !this._filterFavoriteOnly);
+      }
+      this._renderTable();
+    });
     document.getElementById('upload-odai-btn').addEventListener('click', () => this._openUploadForm());
     document.getElementById('bulk-delete-btn').addEventListener('click', () => this._bulkDelete());
     document.getElementById('bulk-tag-btn').addEventListener('click', () => this._openBulkTagForm());
     await this._loadOdai();
   },
 
-  async _loadOdai(filename = '', tag = '', used = null) {
+  async _loadOdai(filename = '', tag = '') {
     try {
-      const res = await API.getOdai(filename, tag, used);
+      const res = await API.getOdai(filename, tag);
       this._odai = res.data;
       for (const id of this._selected) {
         if (!this._odai.some(o => o.id === id)) this._selected.delete(id);
@@ -67,33 +86,65 @@ const OdaiPage = {
   _applyFilter() {
     const filename = document.getElementById('filter-filename').value.trim();
     const tag = document.getElementById('filter-tag').value;
-    const usedStr = document.getElementById('filter-used').value;
-    const used = usedStr === '' ? null : usedStr === 'true';
-    this._loadOdai(filename, tag, used);
+    this._loadOdai(filename, tag);
+  },
+
+  _getUsageStatus(odai) {
+    const count = odai.usage_count || 0;
+    const total = odai.total_channels || 0;
+    if (count === 0) return { label: '未使用', cls: 'unused' };
+    if (total > 0 && count >= total) return { label: '使用済み', cls: 'used' };
+    return { label: '一部使用済み', cls: 'partial' };
   },
 
   _renderTable() {
-    if (!this._odai.length) {
+    let list = [...this._odai];
+
+    if (this._filterStatus) {
+      list = list.filter(o => this._getUsageStatus(o).cls === this._filterStatus);
+    }
+    if (this._filterFavoriteOnly) {
+      list = list.filter(o => o.is_favorite);
+    }
+
+    if (!list.length) {
       document.getElementById('odai-table-root').innerHTML = '<p class="text-muted">お題が登録されていません。</p>';
       this._updateBulkBar();
       return;
     }
-    const sorted = [...this._odai].sort((a, b) => {
+
+    const sorted = list.sort((a, b) => {
+      if (this._sortKey === 'is_favorite') {
+        const diff = (b.is_favorite ? 1 : 0) - (a.is_favorite ? 1 : 0);
+        if (diff !== 0) return this._sortDir === 'asc' ? -diff : diff;
+        return new Date(b.added_at) - new Date(a.added_at);
+      }
       const av = (a[this._sortKey] ?? '').toString().toLowerCase();
       const bv = (b[this._sortKey] ?? '').toString().toLowerCase();
       const cmp = av < bv ? -1 : av > bv ? 1 : 0;
       return this._sortDir === 'asc' ? cmp : -cmp;
     });
+
     const icon = (key) => {
       if (this._sortKey !== key) return '<span class="sort-icon">⇅</span>';
-      return this._sortDir === 'asc' ? '<span class="sort-icon sort-icon--active">▲</span>' : '<span class="sort-icon sort-icon--active">▼</span>';
+      return this._sortDir === 'asc'
+        ? '<span class="sort-icon sort-icon--active">▲</span>'
+        : '<span class="sort-icon sort-icon--active">▼</span>';
     };
+    const favIcon = () => {
+      if (this._sortKey !== 'is_favorite') return '<span class="sort-icon">⇅</span>';
+      return this._sortDir === 'asc'
+        ? '<span class="sort-icon sort-icon--active">▲</span>'
+        : '<span class="sort-icon sort-icon--active">▼</span>';
+    };
+
     document.getElementById('odai-table-root').innerHTML = `
       <div class="table-scroll">
         <table class="table">
           <thead>
             <tr>
               <th class="col-cb"><input type="checkbox" id="select-all" title="全選択"></th>
+              <th class="col-fav"><button class="sort-btn" data-sort="is_favorite" title="お気に入り順">★ ${favIcon()}</button></th>
               <th><button class="sort-btn" data-sort="filename">ファイル名 ${icon('filename')}</button></th>
               <th>タグ</th>
               <th>使用状況</th>
@@ -102,22 +153,25 @@ const OdaiPage = {
             </tr>
           </thead>
           <tbody>
-            ${sorted.map(o => `
+            ${sorted.map(o => {
+              const status = this._getUsageStatus(o);
+              return `
               <tr>
                 <td class="col-cb"><input type="checkbox" class="row-cb" data-id="${o.id}" ${this._selected.has(o.id) ? 'checked' : ''}></td>
+                <td class="col-fav">
+                  <button class="btn--fav ${o.is_favorite ? 'btn--fav--active' : ''}" data-fav="${o.id}" title="${o.is_favorite ? 'お気に入り解除' : 'お気に入りに追加'}">
+                    ${o.is_favorite ? '★' : '☆'}
+                  </button>
+                </td>
                 <td class="table__filename">${escapeHtml(o.filename)}</td>
                 <td>${(o.tags || []).map(t => `<span class="tag-chip">${escapeHtml(t)}</span>`).join(' ')}</td>
-                <td>
-                  <span class="badge badge--${o.used ? 'used' : 'unused'}">${o.used ? '使用済み' : '未使用'}</span>
-                </td>
+                <td><span class="badge badge--${status.cls}">${status.label}</span></td>
                 <td class="hide-mobile">${formatDate(o.added_at)}</td>
                 <td class="table__actions">
-                  <button class="btn btn--sm btn--ghost" data-preview="${o.id}" title="プレビュー">👁</button>
-                  <button class="btn btn--sm btn--secondary" data-edit="${o.id}">編集</button>
-                  <button class="btn btn--sm btn--danger" data-delete="${o.id}">削除</button>
+                  <button class="btn btn--sm btn--secondary" data-detail="${o.id}">詳細</button>
                 </td>
-              </tr>
-            `).join('')}
+              </tr>`;
+            }).join('')}
           </tbody>
         </table>
       </div>
@@ -138,9 +192,9 @@ const OdaiPage = {
 
     document.getElementById('select-all').addEventListener('change', e => {
       if (e.target.checked) {
-        this._odai.forEach(o => this._selected.add(o.id));
+        sorted.forEach(o => this._selected.add(o.id));
       } else {
-        this._odai.forEach(o => this._selected.delete(o.id));
+        sorted.forEach(o => this._selected.delete(o.id));
       }
       document.querySelectorAll('.row-cb').forEach(cb => { cb.checked = e.target.checked; });
       this._updateBulkBar();
@@ -155,17 +209,24 @@ const OdaiPage = {
       });
     });
 
-    document.querySelectorAll('[data-preview]').forEach(btn => {
-      const item = this._odai.find(o => o.id === parseInt(btn.dataset.preview));
-      btn.addEventListener('click', () => this._previewOdai(item));
+    document.querySelectorAll('[data-fav]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = parseInt(btn.dataset.fav);
+        const item = this._odai.find(o => o.id === id);
+        if (!item) return;
+        try {
+          await API.updateOdai(id, { is_favorite: !item.is_favorite });
+          item.is_favorite = !item.is_favorite;
+          this._renderTable();
+        } catch (err) {
+          Toast.error(err.message);
+        }
+      });
     });
-    document.querySelectorAll('[data-edit]').forEach(btn => {
-      const item = this._odai.find(o => o.id === parseInt(btn.dataset.edit));
-      btn.addEventListener('click', () => this._openEditForm(item));
-    });
-    document.querySelectorAll('[data-delete]').forEach(btn => {
-      const item = this._odai.find(o => o.id === parseInt(btn.dataset.delete));
-      btn.addEventListener('click', () => this._confirmDelete(item));
+
+    document.querySelectorAll('[data-detail]').forEach(btn => {
+      const item = this._odai.find(o => o.id === parseInt(btn.dataset.detail));
+      btn.addEventListener('click', () => this._openDetailModal(item));
     });
 
     this._updateBulkBar();
@@ -182,6 +243,180 @@ const OdaiPage = {
       all.checked = this._odai.length > 0 && count === this._odai.length;
       all.indeterminate = count > 0 && count < this._odai.length;
     }
+  },
+
+  async _openDetailModal(odai) {
+    const tagOptions = this._allTags.map(t =>
+      `<option value="${escapeHtml(t.name)}" ${(odai.tags || []).includes(t.name) ? 'selected' : ''}>${escapeHtml(t.name)}</option>`
+    ).join('');
+
+    const body = `
+      <div class="detail-modal">
+        <div>
+          <div class="detail-preview-wrap">
+            <div id="detail-img-loading" class="loading" style="padding:0">読み込み中...</div>
+            <div id="detail-img-wrap" hidden>
+              <img id="detail-img" class="preview-img" alt="${escapeHtml(odai.filename)}">
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="detail-section__title">登録情報</div>
+          <table class="detail-usage-table">
+            <tbody>
+              <tr><td>登録者</td><td>${escapeHtml(odai.created_by_name || '不明')}</td></tr>
+              <tr><td>登録日時</td><td>${formatDate(odai.added_at)}</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div>
+          <div class="detail-section__title">アクティビティ履歴</div>
+          <div id="detail-history-wrap">
+            <div id="detail-history"><span class="loading" style="padding:0">読み込み中...</span></div>
+          </div>
+        </div>
+
+        <div>
+          <div class="detail-section__title">ファイル名</div>
+          <div class="detail-inline">
+            <input type="text" id="detail-filename" class="form__input" value="${escapeHtml(odai.filename)}">
+            <button class="btn btn--sm btn--secondary" id="detail-rename-btn">変更</button>
+          </div>
+        </div>
+
+        <div>
+          <div class="detail-section__title">タグ</div>
+          <select id="detail-tags" class="form__select" multiple size="4">${tagOptions}</select>
+          <button class="btn btn--sm btn--secondary" id="detail-tags-btn" style="margin-top:8px">タグ更新</button>
+        </div>
+
+        <div class="detail-section--danger">
+          <button class="btn btn--sm btn--danger" id="detail-delete-btn">このお題を削除</button>
+        </div>
+      </div>
+    `;
+
+    Modal.show(escapeHtml(odai.filename), body, { className: 'modal--lg' });
+
+    // 画像ロード
+    (async () => {
+      try {
+        const url = await API.getOdaiImageUrl(odai.id);
+        const img = document.getElementById('detail-img');
+        if (!img) return;
+        img.onload = () => {
+          const loading = document.getElementById('detail-img-loading');
+          const wrap = document.getElementById('detail-img-wrap');
+          if (loading) loading.hidden = true;
+          if (wrap) wrap.hidden = false;
+          URL.revokeObjectURL(url);
+        };
+        img.src = url;
+      } catch (_) {
+        const loading = document.getElementById('detail-img-loading');
+        if (loading) loading.textContent = '画像の読み込みに失敗しました';
+      }
+    })();
+
+    // アクティビティ履歴（ページネーション付き）
+    const _HISTORY_ACTIONS = {
+      posted:     { icon: '📤', label: (d) => `${d || 'チャンネル'} に投稿` },
+      favorited:  { icon: '⭐', label: ()  => 'お気に入りに追加' },
+      unfavorited:{ icon: '☆',  label: ()  => 'お気に入りを解除' },
+      tagged:     { icon: '🏷️', label: (d) => `タグ「${d}」を設定` },
+      untagged:   { icon: '✂️', label: (d) => `タグ「${d}」を解除` },
+    };
+
+    let _histPage = 1;
+    const PER_PAGE = 5;
+
+    const _renderHistory = (data, page, totalPages) => {
+      const items = data.length === 0
+        ? '<p class="form__note" style="margin:0">履歴なし</p>'
+        : `<div class="history-list">${data.map(h => {
+            const def = _HISTORY_ACTIONS[h.action] || { icon: '•', label: (d) => d || h.action };
+            const label = def.label(h.detail || '');
+            const who = h.user_name || (h.user_id ? String(h.user_id) : 'Bot');
+            return `
+              <div class="history-item">
+                <span class="history-icon">${def.icon}</span>
+                <div class="history-body">
+                  <div class="history-label">${escapeHtml(label)}</div>
+                  <div class="history-meta">${escapeHtml(who)} · ${formatDate(h.created_at)}</div>
+                </div>
+              </div>`;
+          }).join('')}</div>`;
+
+      const pagination = totalPages > 1 ? `
+        <div class="history-pagination">
+          <button class="btn btn--sm btn--ghost" id="hist-prev" ${page <= 1 ? 'disabled' : ''}>← 前へ</button>
+          <span class="history-page-info">${page} / ${totalPages} ページ</span>
+          <button class="btn btn--sm btn--ghost" id="hist-next" ${page >= totalPages ? 'disabled' : ''}>次へ →</button>
+        </div>` : '';
+
+      return items + pagination;
+    };
+
+    const _loadHistory = async (page) => {
+      _histPage = page;
+      const el = document.getElementById('detail-history');
+      if (!el) return;
+      el.innerHTML = '<span class="loading" style="padding:0">読み込み中...</span>';
+      try {
+        const res = await API.getOdaiHistory(odai.id, page, PER_PAGE);
+        if (!document.getElementById('detail-history')) return;
+        el.innerHTML = _renderHistory(res.data, res.page, res.total_pages);
+        const prev = document.getElementById('hist-prev');
+        const next = document.getElementById('hist-next');
+        if (prev) prev.onclick = () => _loadHistory(_histPage - 1);
+        if (next) next.onclick = () => _loadHistory(_histPage + 1);
+      } catch (_) {
+        if (el) el.innerHTML = '<p class="text-error">履歴の取得に失敗しました</p>';
+      }
+    };
+
+    _loadHistory(1);
+
+    // ファイル名変更
+    document.getElementById('detail-rename-btn')?.addEventListener('click', async () => {
+      const newName = document.getElementById('detail-filename')?.value.trim();
+      if (!newName || newName === odai.filename) return;
+      try {
+        await API.updateOdai(odai.id, { filename: newName });
+        odai.filename = newName;
+        Toast.success('ファイル名を変更しました');
+        await this._loadOdai(
+          document.getElementById('filter-filename')?.value.trim() || '',
+          document.getElementById('filter-tag')?.value || '',
+        );
+      } catch (err) {
+        Toast.error(err.message);
+      }
+    });
+
+    // タグ更新
+    document.getElementById('detail-tags-btn')?.addEventListener('click', async () => {
+      const tags = Array.from(document.getElementById('detail-tags')?.selectedOptions || []).map(o => o.value);
+      try {
+        await API.updateOdai(odai.id, { tags });
+        odai.tags = tags;
+        Toast.success('タグを更新しました');
+        await this._loadOdai(
+          document.getElementById('filter-filename')?.value.trim() || '',
+          document.getElementById('filter-tag')?.value || '',
+        );
+      } catch (err) {
+        Toast.error(err.message);
+      }
+    });
+
+    // 削除
+    document.getElementById('detail-delete-btn')?.addEventListener('click', () => {
+      Modal.close();
+      this._confirmDelete(odai);
+    });
   },
 
   async _bulkDelete() {
@@ -245,37 +480,6 @@ const OdaiPage = {
           errorEl.hidden = false;
           confirmBtn.disabled = false;
           confirmBtn.textContent = '保存';
-        }
-      },
-    });
-  },
-
-  async _previewOdai(odai) {
-    Modal.show('プレビュー', `
-      <div id="preview-loading" class="loading">読み込み中...</div>
-      <div id="preview-img-wrap" class="preview-img-wrap" hidden>
-        <img id="preview-img" class="preview-img" alt="${escapeHtml(odai.filename)}">
-      </div>
-      <p class="form__note" style="margin-top:10px;word-break:break-all">${escapeHtml(odai.filename)}</p>
-    `, {
-      onOpen: async () => {
-        try {
-          const url = await API.getOdaiImageUrl(odai.id);
-          const img = document.getElementById('preview-img');
-          const wrap = document.getElementById('preview-img-wrap');
-          const loading = document.getElementById('preview-loading');
-          img.onload = () => {
-            loading.hidden = true;
-            wrap.hidden = false;
-            URL.revokeObjectURL(url);
-          };
-          img.onerror = () => {
-            loading.textContent = '画像の読み込みに失敗しました';
-          };
-          img.src = url;
-        } catch (err) {
-          const loading = document.getElementById('preview-loading');
-          if (loading) loading.textContent = '画像の取得に失敗しました';
         }
       },
     });
@@ -367,53 +571,6 @@ const OdaiPage = {
           errorEl.hidden = false;
           confirmBtn.disabled = false;
           confirmBtn.textContent = 'アップロード';
-        }
-      },
-    });
-  },
-
-  _openEditForm(odai) {
-    const tagOptions = this._allTags.map(t =>
-      `<option value="${escapeHtml(t.name)}" ${(odai.tags || []).includes(t.name) ? 'selected' : ''}>${escapeHtml(t.name)}</option>`
-    ).join('');
-    const body = `
-      <div class="form">
-        <div class="form__group">
-          <label class="form__label">ファイル名</label>
-          <input type="text" id="f-filename" class="form__input" value="${escapeHtml(odai.filename)}">
-        </div>
-        <div class="form__group">
-          <label class="form__label">タグ（複数選択可）</label>
-          <select id="f-tags" class="form__select" multiple size="4">${tagOptions}</select>
-        </div>
-        <div class="form__group">
-          <label class="form__label">使用状況</label>
-          <select id="f-used" class="form__select">
-            <option value="false" ${!odai.used ? 'selected' : ''}>未使用</option>
-            <option value="true" ${odai.used ? 'selected' : ''}>使用済み</option>
-          </select>
-        </div>
-        <div id="f-error" class="form__error" hidden></div>
-      </div>
-    `;
-    Modal.show('お題編集', body, {
-      onConfirm: async () => {
-        const errorEl = document.getElementById('f-error');
-        errorEl.hidden = true;
-        const filename = document.getElementById('f-filename').value.trim();
-        if (!filename) { errorEl.textContent = 'ファイル名を入力してください'; errorEl.hidden = false; return; }
-        const tags = Array.from(document.getElementById('f-tags').selectedOptions).map(o => o.value);
-        const used = document.getElementById('f-used').value === 'true';
-        const data = { tags, used };
-        if (filename !== odai.filename) data.filename = filename;
-        try {
-          await API.updateOdai(odai.id, data);
-          Modal.close();
-          Toast.success('更新しました');
-          await this._loadOdai();
-        } catch (err) {
-          errorEl.textContent = err.message;
-          errorEl.hidden = false;
         }
       },
     });

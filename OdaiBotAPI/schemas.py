@@ -9,6 +9,7 @@ class OdaiUpdateRequest(BaseModel):
     tags: Optional[List[str]] = None
     used: Optional[bool] = None
     deleted: Optional[bool] = None
+    is_favorite: Optional[bool] = None
 
 
 class TagCreateRequest(BaseModel):
@@ -19,6 +20,7 @@ class TagCreateRequest(BaseModel):
 class TagUpdateRequest(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
+    is_favorite: Optional[bool] = None
 
 
 class TagPermissionRequest(BaseModel):
