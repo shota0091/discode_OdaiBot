@@ -19,4 +19,5 @@ jobs:
           script: |
             cd /home/shota/bots/discode_OdaiBot
             git pull origin main
-            sudo systemctl restart odaibotapi odaibot
+            sudo systemctl restart odaibotapi
+            sudo systemctl restart odaibot
