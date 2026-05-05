@@ -49,8 +49,8 @@ def login(guild_id: int, payload: LoginRequest):
     user = db.query_one(
         "SELECT u.id, u.username, u.display_name, u.password_hash, ug.role "
         "FROM users u JOIN user_guilds ug ON u.id = ug.user_id "
-        "WHERE ug.guild_id = %s AND (u.username = %s OR u.id = %s)",
-        (guild_id, payload.username, login_id),
+        "WHERE ug.guild_id = %s AND (u.username = %s OR u.id = %s OR u.display_name = %s)",
+        (guild_id, payload.username, login_id, payload.username),
     )
     if not user or not verify_password(payload.password, user["password_hash"]):
         raise HTTPException(status_code=401, detail="ユーザ名またはパスワードが正しくありません")

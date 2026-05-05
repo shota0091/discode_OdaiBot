@@ -18,8 +18,8 @@ def global_login(payload: LoginRequest):
     except ValueError:
         login_id = -1
     user = db.query_one(
-        "SELECT id, username, display_name, password_hash FROM users WHERE username = %s OR id = %s",
-        (payload.username, login_id),
+        "SELECT id, username, display_name, password_hash FROM users WHERE username = %s OR id = %s OR display_name = %s",
+        (payload.username, login_id, payload.username),
     )
     if not user or not verify_password(payload.password, user["password_hash"]):
         raise HTTPException(status_code=401, detail="ユーザ名またはパスワードが正しくありません")

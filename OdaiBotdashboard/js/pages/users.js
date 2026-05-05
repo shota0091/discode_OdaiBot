@@ -39,14 +39,14 @@ const UsersPage = {
       <table class="table">
         <thead>
           <tr>
-            <th>ID</th><th>ユーザー名</th><th>役割</th><th>作成日時</th><th>更新日時</th><th>操作</th>
+            <th>Discord ID</th><th>表示名</th><th>役割</th><th>作成日時</th><th>更新日時</th><th>操作</th>
           </tr>
         </thead>
         <tbody>
           ${this._users.map(u => `
             <tr>
-              <td>${u.id}</td>
               <td>${escapeHtml(u.username)}</td>
+              <td>${escapeHtml(u.display_name || '')}</td>
               <td><span class="badge badge--${u.role}">${u.role === 'admin' ? '管理者' : 'ユーザー'}</span></td>
               <td>${formatDate(u.created_at)}</td>
               <td>${formatDate(u.updated_at)}</td>
