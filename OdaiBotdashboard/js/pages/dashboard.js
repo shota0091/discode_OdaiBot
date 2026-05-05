@@ -7,14 +7,20 @@ const DashboardPage = {
     try {
       const res = await API.getSummary();
       const s = res.data;
-      const lastPost = s.last_post;
-      const lastPostHTML = lastPost
+      const recentPosts = s.recent_posts || [];
+      const recentPostsHTML = recentPosts.length
         ? `<table class="table">
+            <thead>
+              <tr><th>ファイル名</th><th>チャンネル</th><th>結果</th><th>投稿日時</th></tr>
+            </thead>
             <tbody>
-              <tr><th>ファイル名</th><td>${escapeHtml(lastPost.filename)}</td></tr>
-              <tr><th>チャンネルID</th><td>${lastPost.channel_id}</td></tr>
-              <tr><th>結果</th><td><span class="badge badge--${lastPost.result === 'success' ? 'success' : 'error'}">${lastPost.result}</span></td></tr>
-              <tr><th>投稿日時</th><td>${formatDate(lastPost.posted_at)}</td></tr>
+              ${recentPosts.map(p => `
+              <tr>
+                <td>${escapeHtml(p.filename)}</td>
+                <td>${escapeHtml(p.channel_name || p.channel_id)}</td>
+                <td><span class="badge badge--${p.result === 'success' ? 'success' : 'error'}">${p.result}</span></td>
+                <td>${formatDate(p.posted_at)}</td>
+              </tr>`).join('')}
             </tbody>
           </table>`
         : '<p class="text-muted">投稿履歴はまだありません</p>';
@@ -36,7 +42,7 @@ const DashboardPage = {
         </div>
         <div class="section">
           <h2 class="section__title">直近の投稿</h2>
-          ${lastPostHTML}
+          ${recentPostsHTML}
         </div>
         <div class="section">
           <h2 class="section__title">クイックリンク</h2>
