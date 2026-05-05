@@ -111,6 +111,18 @@ def update_odai(guild_id: int, odai_id: int, payload: OdaiUpdateRequest):
     if not db.query_one("SELECT id FROM odai WHERE id = %s AND guild_id = %s AND deleted_at IS NULL", (odai_id, guild_id)):
         raise HTTPException(status_code=404, detail="お題が見つかりません")
 
+    if payload.filename is not None:
+        new_name = payload.filename.strip()
+        if not new_name:
+            raise HTTPException(status_code=400, detail="ファイル名は空にできません")
+        existing = db.query_one(
+            "SELECT id FROM odai WHERE guild_id = %s AND filename = %s AND deleted_at IS NULL AND id != %s",
+            (guild_id, new_name, odai_id),
+        )
+        if existing:
+            raise HTTPException(status_code=409, detail=f"同名のファイルが既に存在します: {new_name}")
+        db.execute("UPDATE odai SET filename = %s WHERE id = %s", (new_name, odai_id), commit=True)
+
     if payload.tags is not None:
         db.execute("DELETE FROM odai_tags WHERE odai_id = %s", (odai_id,), commit=True)
         for tag_name in payload.tags:

@@ -5,6 +5,7 @@ from pydantic import BaseModel, field_validator
 
 
 class OdaiUpdateRequest(BaseModel):
+    filename: Optional[str] = None
     tags: Optional[List[str]] = None
     used: Optional[bool] = None
     deleted: Optional[bool] = None

@@ -378,7 +378,10 @@ const OdaiPage = {
     ).join('');
     const body = `
       <div class="form">
-        <p class="form__note">ファイル名: <strong>${escapeHtml(odai.filename)}</strong></p>
+        <div class="form__group">
+          <label class="form__label">ファイル名</label>
+          <input type="text" id="f-filename" class="form__input" value="${escapeHtml(odai.filename)}">
+        </div>
         <div class="form__group">
           <label class="form__label">タグ（複数選択可）</label>
           <select id="f-tags" class="form__select" multiple size="4">${tagOptions}</select>
@@ -397,10 +400,14 @@ const OdaiPage = {
       onConfirm: async () => {
         const errorEl = document.getElementById('f-error');
         errorEl.hidden = true;
+        const filename = document.getElementById('f-filename').value.trim();
+        if (!filename) { errorEl.textContent = 'ファイル名を入力してください'; errorEl.hidden = false; return; }
         const tags = Array.from(document.getElementById('f-tags').selectedOptions).map(o => o.value);
         const used = document.getElementById('f-used').value === 'true';
+        const data = { tags, used };
+        if (filename !== odai.filename) data.filename = filename;
         try {
-          await API.updateOdai(odai.id, { tags, used });
+          await API.updateOdai(odai.id, data);
           Modal.close();
           Toast.success('更新しました');
           await this._loadOdai();
