@@ -1,4 +1,5 @@
 import os
+import threading
 import mysql.connector
 from dotenv import load_dotenv
 
@@ -8,7 +9,7 @@ load_dotenv()
 class MySQLDatabase:
     def __init__(self):
         self._settings = self._get_connection_settings()
-        self.conn = self._connect()
+        self._local = threading.local()
 
     def _connect(self):
         return mysql.connector.connect(
@@ -19,6 +20,16 @@ class MySQLDatabase:
             database=self._settings["database"],
             autocommit=False,
         )
+
+    @property
+    def conn(self):
+        if not hasattr(self._local, "conn"):
+            self._local.conn = self._connect()
+        return self._local.conn
+
+    @conn.setter
+    def conn(self, value):
+        self._local.conn = value
 
     def _ensure_connection(self):
         try:
