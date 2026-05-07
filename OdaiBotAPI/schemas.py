@@ -131,4 +131,5 @@ class GlobalLoginResponse(BaseModel):
     token_type: str
     role: str
     display_name: Optional[str] = None
+    user_id: Optional[int] = None
     guilds: List[GuildInfo]

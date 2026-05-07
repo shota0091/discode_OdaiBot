@@ -56,6 +56,7 @@ def global_login(payload: LoginRequest):
         "token_type": "bearer",
         "role": guilds[0]["role"],
         "display_name": display_name,
+        "user_id": user["id"],
         "guilds": guilds,
     }
 
