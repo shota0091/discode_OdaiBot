@@ -218,6 +218,14 @@ const API = {
     return URL.createObjectURL(blob);
   },
 
+  async testPost(channelId, tagMode = 'all', tagList = []) {
+    return this._fetch(`/api/guilds/${this._guildId()}/test-post`, {
+      method: 'POST',
+      headers: this._headers(),
+      body: JSON.stringify({ channel_id: channelId, tag_mode: tagMode, tag_list: tagList }),
+    });
+  },
+
   // Schedules
   async getSchedules() {
     return this._fetch(`/api/guilds/${this._guildId()}/schedules`, { headers: this._headers() });

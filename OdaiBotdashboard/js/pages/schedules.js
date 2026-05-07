@@ -61,6 +61,7 @@ const SchedulesPage = {
               <td><span class="badge badge--mode">${s.tag_mode}</span></td>
               <td class="hide-mobile">${(s.tag_list || []).map(t => `<span class="tag-chip">${escapeHtml(t)}</span>`).join(' ') || '-'}</td>
               <td class="table__actions">
+                <button class="btn btn--sm btn--ghost" data-test="${s.id}" title="投稿プレビュー">🔍 テスト</button>
                 <button class="btn btn--sm btn--${s.enabled ? 'warning' : 'success'}" data-toggle="${s.id}">${s.enabled ? '無効化' : '有効化'}</button>
                 <button class="btn btn--sm btn--secondary" data-edit="${s.id}">編集</button>
                 <button class="btn btn--sm btn--danger" data-delete="${s.id}">削除</button>
@@ -71,6 +72,10 @@ const SchedulesPage = {
       </table>
       </div>
     `;
+    document.querySelectorAll('[data-test]').forEach(btn => {
+      const item = this._schedules.find(s => s.id === parseInt(btn.dataset.test));
+      btn.addEventListener('click', () => this._openTestPreview(item));
+    });
     document.querySelectorAll('[data-toggle]').forEach(btn => {
       const item = this._schedules.find(s => s.id === parseInt(btn.dataset.toggle));
       btn.addEventListener('click', () => this._toggleEnabled(item));
@@ -200,6 +205,52 @@ const SchedulesPage = {
         }
       },
     });
+  },
+
+  async _openTestPreview(schedule) {
+    const chName = schedule.channel_name ? `#${schedule.channel_name}` : schedule.channel_id;
+    Modal.show(`投稿プレビュー — ${escapeHtml(chName)}`, `
+      <div style="text-align:center">
+        <p class="form__note" style="margin-bottom:12px">このスケジュールで次に投稿される候補のお題です（実際の投稿はBotが行います）</p>
+        <div id="test-preview-loading" class="loading" style="padding:0">取得中...</div>
+        <div id="test-preview-content" hidden style="display:flex;flex-direction:column;align-items:center;gap:12px"></div>
+        <p id="test-preview-error" class="text-error" hidden></p>
+      </div>
+    `, {});
+
+    try {
+      const res = await API.testPost(schedule.channel_id, schedule.tag_mode, schedule.tag_list || []);
+      const candidate = res.data;
+      const loadingEl = document.getElementById('test-preview-loading');
+      const contentEl = document.getElementById('test-preview-content');
+      if (!loadingEl || !contentEl) return;
+
+      loadingEl.hidden = true;
+      contentEl.hidden = false;
+      contentEl.innerHTML = `
+        <div id="test-img-wrap"><p class="loading" style="padding:0">画像読み込み中...</p></div>
+        <div>
+          <strong>${escapeHtml(candidate.filename)}</strong>
+          ${(candidate.tags || []).length ? `<div style="margin-top:6px">${candidate.tags.map(t => `<span class="tag-chip">${escapeHtml(t)}</span>`).join(' ')}</div>` : ''}
+        </div>
+      `;
+
+      try {
+        const url = await API.getOdaiImageUrl(candidate.id);
+        const wrap = document.getElementById('test-img-wrap');
+        if (wrap) {
+          wrap.innerHTML = `<img src="${url}" style="max-width:100%;max-height:320px;border-radius:6px;object-fit:contain" onload="URL.revokeObjectURL(this.src)">`;
+        }
+      } catch (_) {
+        const wrap = document.getElementById('test-img-wrap');
+        if (wrap) wrap.innerHTML = '<p class="text-muted">画像の読み込みに失敗しました</p>';
+      }
+    } catch (err) {
+      const loadingEl = document.getElementById('test-preview-loading');
+      const errorEl = document.getElementById('test-preview-error');
+      if (loadingEl) loadingEl.hidden = true;
+      if (errorEl) { errorEl.textContent = err.message; errorEl.hidden = false; }
+    }
   },
 
   _confirmDelete(schedule) {

@@ -83,6 +83,7 @@ const UsersPage = {
                 <button class="btn btn--sm btn--ghost" data-detail="${u.id}">詳細</button>
                 ${!isBanned ? `<button class="btn btn--sm btn--secondary" data-edit="${u.id}">編集</button>` : ''}
                 ${isLocked && !isBanned ? `<button class="btn btn--sm btn--warning" data-unlock="${u.id}">解除</button>` : ''}
+                ${!isBanned ? `<button class="btn btn--sm btn--ghost" data-pwreset="${u.id}">PW変更</button>` : ''}
                 ${!isSelf ? (isBanned
                   ? `<button class="btn btn--sm btn--secondary" data-unban="${u.id}">BAN解除</button>`
                   : `<button class="btn btn--sm btn--danger" data-ban="${u.id}">BAN</button>`)
@@ -95,6 +96,10 @@ const UsersPage = {
       </table>
       </div>
     `;
+    document.querySelectorAll('[data-pwreset]').forEach(btn => {
+      const user = users.find(u => u.id === parseInt(btn.dataset.pwreset));
+      btn.addEventListener('click', () => this._openPasswordResetForm(user));
+    });
     document.querySelectorAll('[data-ban]').forEach(btn => {
       const user = users.find(u => u.id === parseInt(btn.dataset.ban));
       btn.addEventListener('click', () => this._confirmBan(user));
@@ -227,6 +232,37 @@ const UsersPage = {
           Modal.close();
           Toast.success(user ? '更新しました' : '作成しました');
           await this._loadUsers();
+        } catch (err) {
+          errorEl.textContent = err.message;
+          errorEl.hidden = false;
+        }
+      },
+    });
+  },
+
+  _openPasswordResetForm(user) {
+    const body = `
+      <div class="form">
+        <p class="form__note">ユーザー名: <strong>${escapeHtml(user.username)}</strong></p>
+        <div class="form__group">
+          <label class="form__label">新しいパスワード <span class="required">*</span></label>
+          <input type="password" id="f-new-password" class="form__input" placeholder="8文字以上">
+        </div>
+        <div id="f-error" class="form__error" hidden></div>
+      </div>
+    `;
+    Modal.show('パスワード変更', body, {
+      confirmLabel: '変更',
+      onConfirm: async () => {
+        const errorEl = document.getElementById('f-error');
+        errorEl.hidden = true;
+        const password = document.getElementById('f-new-password').value;
+        if (!password) { errorEl.textContent = 'パスワードを入力してください'; errorEl.hidden = false; return; }
+        if (password.length < 8) { errorEl.textContent = 'パスワードは8文字以上で入力してください'; errorEl.hidden = false; return; }
+        try {
+          await API.updateUser(user.id, { password });
+          Modal.close();
+          Toast.success('パスワードを変更しました');
         } catch (err) {
           errorEl.textContent = err.message;
           errorEl.hidden = false;
