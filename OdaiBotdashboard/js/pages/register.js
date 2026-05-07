@@ -51,7 +51,7 @@ const RegisterPage = {
     localStorage.setItem('access_token', data.access_token);
     localStorage.setItem('role', data.role);
     localStorage.setItem('user_id', data.user_id ?? '');
-    localStorage.setItem('user', JSON.stringify({ username: data.display_name || '' }));
+    localStorage.setItem('user', JSON.stringify({ username: data.display_name || '', display_name: data.display_name || null }));
 
     try {
       const guildsRes = await API.getGuilds();

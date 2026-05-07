@@ -54,7 +54,7 @@ const LoginPage = {
         localStorage.setItem('guild_name', first.guild_name || first.guild_id);
         localStorage.setItem('role', first.role);
         localStorage.setItem('user_id', data.user_id ?? '');
-        localStorage.setItem('user', JSON.stringify({ username: data.display_name || username }));
+        localStorage.setItem('user', JSON.stringify({ username, display_name: data.display_name || null }));
         location.hash = '#/dashboard';
       } catch (err) {
         errorEl.textContent = err.message;

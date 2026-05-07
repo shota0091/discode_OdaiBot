@@ -9,9 +9,9 @@ const DashboardPage = {
       const s = res.data;
       const recentPosts = s.recent_posts || [];
       const recentPostsHTML = recentPosts.length
-        ? `<table class="table">
+        ? `<div class="table-scroll"><table class="table">
             <thead>
-              <tr><th>ファイル名</th><th>チャンネル</th><th>結果</th><th>投稿日時</th></tr>
+              <tr><th>ファイル名</th><th>チャンネル</th><th>結果</th><th class="hide-mobile">投稿日時</th></tr>
             </thead>
             <tbody>
               ${recentPosts.map(p => `
@@ -19,10 +19,10 @@ const DashboardPage = {
                 <td>${escapeHtml(p.filename)}</td>
                 <td>${escapeHtml(p.channel_name || p.channel_id)}</td>
                 <td><span class="badge badge--${p.result === 'success' ? 'success' : 'error'}">${p.result}</span></td>
-                <td>${formatDate(p.posted_at)}</td>
+                <td class="hide-mobile">${formatDate(p.posted_at)}</td>
               </tr>`).join('')}
             </tbody>
-          </table>`
+          </table></div>`
         : '<p class="text-muted">投稿履歴はまだありません</p>';
 
       document.getElementById('summary-root').innerHTML = `

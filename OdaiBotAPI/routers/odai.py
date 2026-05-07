@@ -14,7 +14,7 @@ _MAX_FILE_SIZE = 8 * 1024 * 1024  # 8 MB
 
 def _get_odai_with_tags(guild_id: int, odai_id: int) -> dict | None:
     row = db.query_one(
-        "SELECT o.id, o.guild_id, o.filename, o.storage_path, o.used, o.is_favorite, o.added_at, o.deleted_at, "
+        "SELECT o.id, o.guild_id, o.filename, o.storage_path, o.is_favorite, o.memo, o.added_at, o.deleted_at, "
         "o.created_by, COALESCE(u.display_name, u.username) AS created_by_name "
         "FROM odai o LEFT JOIN users u ON u.id = o.created_by "
         "WHERE o.guild_id = %s AND o.id = %s",
@@ -28,7 +28,7 @@ def _get_odai_with_tags(guild_id: int, odai_id: int) -> dict | None:
 
 def _get_odai_by_filename(guild_id: int, filename: str) -> dict | None:
     row = db.query_one(
-        "SELECT o.id, o.guild_id, o.filename, o.storage_path, o.used, o.is_favorite, o.added_at, o.deleted_at, "
+        "SELECT o.id, o.guild_id, o.filename, o.storage_path, o.is_favorite, o.memo, o.added_at, o.deleted_at, "
         "o.created_by, COALESCE(u.display_name, u.username) AS created_by_name "
         "FROM odai o LEFT JOIN users u ON u.id = o.created_by "
         "WHERE o.guild_id = %s AND o.filename = %s",
@@ -41,9 +41,9 @@ def _get_odai_by_filename(guild_id: int, filename: str) -> dict | None:
 
 
 @router.get("", dependencies=[Depends(get_current_user)])
-def list_odai(guild_id: int, filename: Optional[str] = None, tag: Optional[str] = None, used: Optional[bool] = None, favorite: Optional[bool] = None):
+def list_odai(guild_id: int, filename: Optional[str] = None, tag: Optional[str] = None, favorite: Optional[bool] = None):
     sql = (
-        "SELECT DISTINCT o.id, o.guild_id, o.filename, o.storage_path, o.used, o.is_favorite, o.added_at, o.deleted_at, "
+        "SELECT DISTINCT o.id, o.guild_id, o.filename, o.storage_path, o.is_favorite, o.memo, o.added_at, o.deleted_at, "
         "o.created_by, COALESCE(cu.display_name, cu.username) AS created_by_name, "
         "COALESCE(uc.usage_count, 0) AS usage_count "
         "FROM odai o "
@@ -67,10 +67,6 @@ def list_odai(guild_id: int, filename: Optional[str] = None, tag: Optional[str] 
     if filename:
         sql += " AND o.filename LIKE %s"
         params.append(f"%{filename}%")
-
-    if used is not None:
-        sql += " AND o.used = %s"
-        params.append(1 if used else 0)
 
     if favorite is not None:
         sql += " AND o.is_favorite = %s"
@@ -224,8 +220,9 @@ def update_odai(guild_id: int, odai_id: int, payload: OdaiUpdateRequest, current
         if (new_tags - old_tags) or (old_tags - new_tags):
             db.conn.commit()
 
-    if payload.used is not None:
-        db.execute("UPDATE odai SET used = %s WHERE id = %s", (1 if payload.used else 0, odai_id), commit=True)
+    if payload.memo is not None:
+        memo_val = payload.memo.strip() or None
+        db.execute("UPDATE odai SET memo = %s WHERE id = %s", (memo_val, odai_id), commit=True)
 
     if payload.deleted is not None:
         if payload.deleted:

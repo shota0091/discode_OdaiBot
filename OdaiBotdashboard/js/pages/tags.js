@@ -36,9 +36,10 @@ const TagsPage = {
       return;
     }
     document.getElementById('tags-table-root').innerHTML = `
+      <div class="table-scroll">
       <table class="table">
         <thead>
-          <tr><th></th><th>タグ名</th><th>説明</th><th>登録者</th><th class="hide-mobile">作成日時</th><th>操作</th></tr>
+          <tr><th></th><th>タグ名</th><th>説明</th><th class="hide-mobile">登録者</th><th class="hide-mobile">作成日時</th><th>操作</th></tr>
         </thead>
         <tbody>
           ${this._tags.map(t => `
@@ -50,7 +51,7 @@ const TagsPage = {
               </td>
               <td><span class="tag-chip">${escapeHtml(t.name)}</span></td>
               <td>${escapeHtml(t.description || '')}</td>
-              <td>${escapeHtml(t.created_by_name || '—')}</td>
+              <td class="hide-mobile">${escapeHtml(t.created_by_name || '—')}</td>
               <td class="hide-mobile">${formatDate(t.created_at)}</td>
               <td class="table__actions">
                 <button class="btn btn--sm btn--secondary" data-detail="${t.id}">詳細</button>
@@ -61,6 +62,7 @@ const TagsPage = {
           `).join('')}
         </tbody>
       </table>
+      </div>
     `;
 
     document.querySelectorAll('[data-fav]').forEach(btn => {

@@ -63,6 +63,10 @@ def login(guild_id: int, payload: LoginRequest):
     if not user:
         raise HTTPException(status_code=401, detail="ユーザ名またはパスワードが正しくありません")
 
+    # BANチェック
+    if db.query_one("SELECT 1 FROM guild_bans WHERE guild_id = %s AND username = %s", (guild_id, user["username"])):
+        raise HTTPException(status_code=403, detail="このサーバーからBANされています")
+
     # 永久ロック
     if user["login_locked"]:
         raise HTTPException(status_code=403, detail="アカウントがロックされています。管理者にお問い合わせください")
@@ -117,6 +121,10 @@ def register_with_invite(guild_id: int, payload: InviteRegisterRequest):
     username = invite["username"]
     role = invite["role"]
     display_name = (payload.display_name or "").strip() or username
+
+    # BANチェック
+    if db.query_one("SELECT 1 FROM guild_bans WHERE guild_id = %s AND username = %s", (guild_id, username)):
+        raise HTTPException(status_code=403, detail="このサーバーからBANされています")
 
     # すでにこの guild に登録済みかチェック
     if db.query_one(
@@ -196,7 +204,8 @@ def reset_password(guild_id: int, payload: ResetPasswordRequest):
         raise HTTPException(status_code=404, detail="ユーザーが見つかりません")
 
     db.execute(
-        "UPDATE users SET password_hash = %s, updated_at = CURRENT_TIMESTAMP WHERE id = %s",
+        "UPDATE users SET password_hash = %s, login_attempts = 0, locked_until = NULL, login_locked = 0, "
+        "updated_at = CURRENT_TIMESTAMP WHERE id = %s",
         (hash_password(payload.password), user["id"]), commit=True,
     )
     db.execute(
@@ -215,6 +224,44 @@ def get_invite_info(guild_id: int, token: str):
     if not invite:
         raise HTTPException(status_code=404, detail="招待トークンが無効または期限切れです")
     return {"username": invite["username"]}
+
+
+@router.get("/bans")
+def list_bans(guild_id: int, _admin: dict = Depends(require_admin)):
+    bans = db.query(
+        "SELECT id, username, banned_at FROM guild_bans WHERE guild_id = %s ORDER BY banned_at DESC",
+        (guild_id,),
+    )
+    return {"data": list(bans)}
+
+
+@router.delete("/bans/{ban_id}", status_code=204)
+def remove_ban(guild_id: int, ban_id: int, _admin: dict = Depends(require_admin)):
+    if not db.query_one("SELECT 1 FROM guild_bans WHERE id = %s AND guild_id = %s", (ban_id, guild_id)):
+        raise HTTPException(status_code=404, detail="BANが見つかりません")
+    db.execute("DELETE FROM guild_bans WHERE id = %s", (ban_id,), commit=True)
+    return Response(status_code=204)
+
+
+@router.get("/invites")
+def list_invites(guild_id: int, _admin: dict = Depends(require_admin)):
+    invites = db.query(
+        "SELECT id, username, role, invite_token, expires_at, created_at FROM user_invites "
+        "WHERE guild_id = %s AND used = 0 AND expires_at > NOW() ORDER BY created_at DESC",
+        (guild_id,),
+    )
+    return {"data": list(invites)}
+
+
+@router.delete("/invites/{invite_id}", status_code=204)
+def revoke_invite(guild_id: int, invite_id: int, _admin: dict = Depends(require_admin)):
+    if not db.query_one(
+        "SELECT 1 FROM user_invites WHERE id = %s AND guild_id = %s AND used = 0",
+        (invite_id, guild_id),
+    ):
+        raise HTTPException(status_code=404, detail="招待が見つかりません")
+    db.execute("DELETE FROM user_invites WHERE id = %s", (invite_id,), commit=True)
+    return Response(status_code=204)
 
 
 @router.post("/invite", response_model=InviteResponse)
@@ -243,8 +290,10 @@ def create_invite(guild_id: int, payload: InviteCreateRequest, _user: dict = Dep
 
 _USER_SELECT = (
     "SELECT u.id, u.username, u.display_name, ug.role, "
-    "u.login_attempts, u.locked_until, u.login_locked, u.created_at, u.updated_at "
-    "FROM users u JOIN user_guilds ug ON u.id = ug.user_id"
+    "u.login_attempts, u.locked_until, u.login_locked, u.created_at, u.updated_at, "
+    "CASE WHEN gb.guild_id IS NOT NULL THEN 1 ELSE 0 END AS is_banned "
+    "FROM users u JOIN user_guilds ug ON u.id = ug.user_id "
+    "LEFT JOIN guild_bans gb ON gb.guild_id = ug.guild_id AND gb.username = u.username"
 )
 
 
@@ -308,6 +357,12 @@ def update_user(guild_id: int, user_id: int, payload: UserUpdateRequest, current
 
     if payload.password:
         _validate_password(payload.password)
+        if not is_admin:
+            if not payload.current_password:
+                raise HTTPException(status_code=400, detail="現在のパスワードを入力してください")
+            user_data = db.query_one("SELECT password_hash FROM users WHERE id = %s", (user_id,))
+            if not verify_password(payload.current_password, user_data["password_hash"]):
+                raise HTTPException(status_code=401, detail="現在のパスワードが正しくありません")
         db.execute(
             "UPDATE users SET password_hash = %s, updated_at = CURRENT_TIMESTAMP WHERE id = %s",
             (hash_password(payload.password), user_id), commit=True,
@@ -339,6 +394,59 @@ def unlock_user(guild_id: int, user_id: int, _admin: dict = Depends(require_admi
         (user_id,), commit=True,
     )
     return db.query_one(f"{_USER_SELECT} WHERE u.id = %s AND ug.guild_id = %s", (user_id, guild_id))
+
+
+@router.post("/users/{user_id}/ban")
+def ban_user(guild_id: int, user_id: int, current_admin: dict = Depends(require_admin)):
+    if current_admin["id"] == user_id:
+        raise HTTPException(status_code=400, detail="自分自身をBANできません")
+    user = db.query_one("SELECT username FROM users WHERE id = %s", (user_id,))
+    if not user:
+        raise HTTPException(status_code=404, detail="ユーザーが見つかりません")
+    db.execute(
+        "INSERT IGNORE INTO guild_bans (guild_id, username) VALUES (%s, %s)",
+        (guild_id, user["username"]), commit=True,
+    )
+    return db.query_one(f"{_USER_SELECT} WHERE u.id = %s AND ug.guild_id = %s", (user_id, guild_id))
+
+
+@router.post("/users/{user_id}/unban")
+def unban_user(guild_id: int, user_id: int, _admin: dict = Depends(require_admin)):
+    user = db.query_one("SELECT username FROM users WHERE id = %s", (user_id,))
+    if not user:
+        raise HTTPException(status_code=404, detail="ユーザーが見つかりません")
+    db.execute(
+        "DELETE FROM guild_bans WHERE guild_id = %s AND username = %s",
+        (guild_id, user["username"]), commit=True,
+    )
+    return db.query_one(f"{_USER_SELECT} WHERE u.id = %s AND ug.guild_id = %s", (user_id, guild_id))
+
+
+@router.get("/users/{user_id}/profile")
+def get_user_profile(guild_id: int, user_id: int, current_user: dict = Depends(get_current_user)):
+    is_admin = current_user.get("role") == "admin"
+    if not is_admin and current_user["id"] != user_id:
+        raise HTTPException(status_code=403, detail="他のユーザーのプロフィールを閲覧する権限がありません")
+
+    user = db.query_one(f"{_USER_SELECT} WHERE u.id = %s AND ug.guild_id = %s", (user_id, guild_id))
+    if not user:
+        raise HTTPException(status_code=404, detail="ユーザーが見つかりません")
+
+    created_odai = db.query(
+        "SELECT id, filename, is_favorite, added_at FROM odai "
+        "WHERE guild_id = %s AND created_by = %s AND deleted_at IS NULL ORDER BY added_at DESC",
+        (guild_id, user_id),
+    )
+    created_tags = db.query(
+        "SELECT id, name, description, is_favorite, created_at FROM tags "
+        "WHERE guild_id = %s AND created_by = %s ORDER BY created_at DESC",
+        (guild_id, user_id),
+    )
+    return {
+        "user": dict(user),
+        "created_odai": list(created_odai),
+        "created_tags": list(created_tags),
+    }
 
 
 @router.delete("/users/{user_id}", status_code=204)

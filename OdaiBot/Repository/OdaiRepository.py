@@ -8,7 +8,7 @@ class OdaiRepository:
         return self.load_all(guild_id, include_deleted)
 
     def load_all(self, guild_id: int, include_deleted: bool = False):
-        sql = "SELECT id, guild_id, filename, storage_path, used, added_at, deleted_at FROM odai WHERE guild_id = %s"
+        sql = "SELECT id, guild_id, filename, storage_path, added_at, deleted_at FROM odai WHERE guild_id = %s"
         params = [guild_id]
         if not include_deleted:
             sql += " AND deleted_at IS NULL"
@@ -16,17 +16,16 @@ class OdaiRepository:
         return [self._attach_tags(row) for row in rows]
 
     def load_for_channel(self, guild_id: int, channel_id: int | None):
-        """チャンネルの odai_usage に含まれない（未投稿の）お題を返す。channel_id が None の場合は used=0 のお題を返す。"""
+        """チャンネルの odai_usage に含まれない（未投稿の）お題を返す。"""
         if channel_id is None:
             rows = self.db.query(
-                "SELECT id, guild_id, filename, storage_path, used, added_at, deleted_at "
-                "FROM odai WHERE guild_id = %s AND used = 0 AND deleted_at IS NULL",
+                "SELECT id, guild_id, filename, storage_path, added_at, deleted_at "
+                "FROM odai WHERE guild_id = %s AND deleted_at IS NULL",
                 (guild_id,),
             )
         else:
-            # チャンネル単位の odai_usage で管理するため used フラグは参照しない
             rows = self.db.query(
-                "SELECT id, guild_id, filename, storage_path, used, added_at, deleted_at "
+                "SELECT id, guild_id, filename, storage_path, added_at, deleted_at "
                 "FROM odai WHERE guild_id = %s AND deleted_at IS NULL "
                 "AND id NOT IN (SELECT odai_id FROM odai_usage WHERE guild_id = %s AND channel_id = %s)",
                 (guild_id, guild_id, channel_id),
@@ -38,11 +37,6 @@ class OdaiRepository:
         self.db.execute(
             "INSERT IGNORE INTO odai_usage (guild_id, channel_id, odai_id) VALUES (%s, %s, %s)",
             (guild_id, channel_id, odai_id),
-            commit=False,
-        )
-        self.db.execute(
-            "UPDATE odai SET used = 1 WHERE id = %s",
-            (odai_id,),
             commit=True,
         )
         channel = self.db.query_one(

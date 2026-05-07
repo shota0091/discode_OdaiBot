@@ -148,6 +148,7 @@ const OdaiPage = {
               <th><button class="sort-btn" data-sort="filename">ファイル名 ${icon('filename')}</button></th>
               <th>タグ</th>
               <th>使用状況</th>
+              <th class="hide-mobile">登録者</th>
               <th class="hide-mobile"><button class="sort-btn" data-sort="added_at">登録日時 ${icon('added_at')}</button></th>
               <th>操作</th>
             </tr>
@@ -163,9 +164,12 @@ const OdaiPage = {
                     ${o.is_favorite ? '★' : '☆'}
                   </button>
                 </td>
-                <td class="table__filename">${escapeHtml(o.filename)}</td>
+                <td class="table__filename">
+                  ${escapeHtml(o.filename)}${o.memo ? `<span class="memo-icon" title="${escapeHtml(o.memo)}">📝</span>` : ''}
+                </td>
                 <td>${(o.tags || []).map(t => `<span class="tag-chip">${escapeHtml(t)}</span>`).join(' ')}</td>
                 <td><span class="badge badge--${status.cls}">${status.label}</span></td>
+                <td class="hide-mobile">${escapeHtml(o.created_by_name || '—')}</td>
                 <td class="hide-mobile">${formatDate(o.added_at)}</td>
                 <td class="table__actions">
                   <button class="btn btn--sm btn--secondary" data-detail="${o.id}">詳細</button>
@@ -292,6 +296,12 @@ const OdaiPage = {
           <button class="btn btn--sm btn--secondary" id="detail-tags-btn" style="margin-top:8px">タグ更新</button>
         </div>
 
+        <div>
+          <div class="detail-section__title">📝 メモ</div>
+          <textarea id="detail-memo" class="form__input" rows="3" placeholder="例：2024年末までに削除予定、など">${escapeHtml(odai.memo || '')}</textarea>
+          <button class="btn btn--sm btn--secondary" id="detail-memo-btn" style="margin-top:8px">メモを保存</button>
+        </div>
+
         <div class="detail-section--danger">
           <button class="btn btn--sm btn--danger" id="detail-delete-btn">このお題を削除</button>
         </div>
@@ -407,6 +417,19 @@ const OdaiPage = {
           document.getElementById('filter-filename')?.value.trim() || '',
           document.getElementById('filter-tag')?.value || '',
         );
+      } catch (err) {
+        Toast.error(err.message);
+      }
+    });
+
+    // メモ保存
+    document.getElementById('detail-memo-btn')?.addEventListener('click', async () => {
+      const memo = document.getElementById('detail-memo')?.value ?? '';
+      try {
+        await API.updateOdai(odai.id, { memo });
+        odai.memo = memo.trim() || null;
+        this._renderTable();
+        Toast.success('メモを保存しました');
       } catch (err) {
         Toast.error(err.message);
       }

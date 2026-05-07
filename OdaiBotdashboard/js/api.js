@@ -61,6 +61,15 @@ const API = {
   async getChannels() {
     return this._fetch(`/api/guilds/${this._guildId()}/settings/channels`, { headers: this._headers() });
   },
+  async getInvites() {
+    return this._fetch(`/api/guilds/${this._guildId()}/auth/invites`, { headers: this._headers() });
+  },
+  async revokeInvite(inviteId) {
+    return this._fetch(`/api/guilds/${this._guildId()}/auth/invites/${inviteId}`, {
+      method: 'DELETE',
+      headers: this._headers(),
+    });
+  },
   async createInvite(username, role) {
     return this._fetch(`/api/guilds/${this._guildId()}/auth/invite`, {
       method: 'POST',
@@ -97,6 +106,27 @@ const API = {
     return this._fetch(`/api/guilds/${this._guildId()}/auth/users/${userId}/unlock`, {
       method: 'POST',
       headers: this._headers(),
+    });
+  },
+  async getUserProfile(userId) {
+    return this._fetch(`/api/guilds/${this._guildId()}/auth/users/${userId}/profile`, { headers: this._headers() });
+  },
+  async getBans() {
+    return this._fetch(`/api/guilds/${this._guildId()}/auth/bans`, { headers: this._headers() });
+  },
+  async removeBan(banId) {
+    return this._fetch(`/api/guilds/${this._guildId()}/auth/bans/${banId}`, {
+      method: 'DELETE', headers: this._headers(),
+    });
+  },
+  async banUser(userId) {
+    return this._fetch(`/api/guilds/${this._guildId()}/auth/users/${userId}/ban`, {
+      method: 'POST', headers: this._headers(),
+    });
+  },
+  async unbanUser(userId) {
+    return this._fetch(`/api/guilds/${this._guildId()}/auth/users/${userId}/unban`, {
+      method: 'POST', headers: this._headers(),
     });
   },
 

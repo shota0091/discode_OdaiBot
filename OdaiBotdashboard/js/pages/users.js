@@ -2,13 +2,13 @@ const UsersPage = {
   _users: [],
 
   render() {
-    const isAdmin = localStorage.getItem('role') === 'admin';
     return Layout.render('ユーザー管理', `
       <div class="page-actions">
-        ${isAdmin ? `
-          <input type="text" id="user-search" class="form__input" placeholder="ユーザー名・表示名で検索" style="max-width:260px;">
-          <button class="btn btn--primary" id="create-user-btn">＋ ユーザー作成</button>
-        ` : ''}
+        <input type="text" id="user-search" class="form__input" placeholder="ユーザー名・表示名で検索" style="max-width:260px;">
+        <button class="btn btn--ghost" id="ban-list-btn">🚫 BANリスト</button>
+        <button class="btn btn--ghost" id="invite-list-btn">📋 招待一覧</button>
+        <button class="btn btn--secondary" id="create-invite-btn">🔗 招待発行</button>
+        <button class="btn btn--primary" id="create-user-btn">＋ ユーザー作成</button>
       </div>
       <div id="users-table-root"><p class="loading">読み込み中...</p></div>
     `);
@@ -16,13 +16,17 @@ const UsersPage = {
 
   async init() {
     Layout.bindLogout();
-    const isAdmin = localStorage.getItem('role') === 'admin';
-    if (isAdmin) {
-      document.getElementById('create-user-btn')?.addEventListener('click', () => this._openForm());
-      document.getElementById('user-search')?.addEventListener('input', e => {
-        this._renderTable(e.target.value.trim());
-      });
+    if (localStorage.getItem('role') !== 'admin') {
+      location.hash = '#/dashboard/profile';
+      return;
     }
+    document.getElementById('create-user-btn')?.addEventListener('click', () => this._openForm());
+    document.getElementById('create-invite-btn')?.addEventListener('click', () => this._openInviteForm());
+    document.getElementById('invite-list-btn')?.addEventListener('click', () => this._openInviteList());
+    document.getElementById('ban-list-btn')?.addEventListener('click', () => this._openBanList());
+    document.getElementById('user-search')?.addEventListener('input', e => {
+      this._renderTable(e.target.value.trim());
+    });
     await this._loadUsers();
   },
 
@@ -37,7 +41,6 @@ const UsersPage = {
   },
 
   _renderTable(search = '') {
-    const isAdmin = localStorage.getItem('role') === 'admin';
     const currentUserId = parseInt(localStorage.getItem('user_id') || '0');
     const q = search.toLowerCase();
     const users = q
@@ -54,42 +57,62 @@ const UsersPage = {
       return;
     }
     document.getElementById('users-table-root').innerHTML = `
+      <div class="table-scroll">
       <table class="table">
         <thead>
           <tr>
-            <th>Discord ID</th><th>表示名</th><th>役割</th><th>作成日時</th><th>更新日時</th><th>操作</th>
+            <th>ユーザー名</th><th>表示名</th><th>役割</th><th class="hide-mobile">作成日時</th><th class="hide-mobile">更新日時</th><th>操作</th>
           </tr>
         </thead>
         <tbody>
           ${users.map(u => {
-            const canEdit = isAdmin || u.id === currentUserId;
-            const canDelete = isAdmin && u.id !== currentUserId;
+            const isSelf = u.id === currentUserId;
             const isLocked = u.login_locked || (u.locked_until && new Date(u.locked_until) > new Date());
+            const isBanned = !!u.is_banned;
             const lockBadge = u.login_locked
               ? '<span class="badge badge--error" title="管理者解除が必要">永久ロック</span>'
               : isLocked
                 ? `<span class="badge badge--warning" title="${u.login_attempts}回失敗">一時ロック</span>`
                 : '';
+            const banBadge = isBanned ? '<span class="badge badge--error">BAN</span>' : '';
             return `
-            <tr>
+            <tr${isBanned ? ' style="opacity:0.6"' : ''}>
               <td>${escapeHtml(u.username)}</td>
               <td>${escapeHtml(u.display_name || '')}</td>
               <td>
                 <span class="badge badge--${u.role}">${u.role === 'admin' ? '管理者' : 'ユーザー'}</span>
-                ${lockBadge}
+                ${lockBadge}${banBadge}
               </td>
-              <td>${formatDate(u.created_at)}</td>
-              <td>${formatDate(u.updated_at)}</td>
+              <td class="hide-mobile">${formatDate(u.created_at)}</td>
+              <td class="hide-mobile">${formatDate(u.updated_at)}</td>
               <td class="table__actions">
-                ${canEdit ? `<button class="btn btn--sm btn--secondary" data-edit="${u.id}">編集</button>` : ''}
-                ${isAdmin && isLocked ? `<button class="btn btn--sm btn--warning" data-unlock="${u.id}">解除</button>` : ''}
-                ${canDelete ? `<button class="btn btn--sm btn--danger" data-delete="${u.id}">削除</button>` : ''}
+                <button class="btn btn--sm btn--ghost" data-detail="${u.id}">詳細</button>
+                ${!isBanned ? `<button class="btn btn--sm btn--secondary" data-edit="${u.id}">編集</button>` : ''}
+                ${isLocked && !isBanned ? `<button class="btn btn--sm btn--warning" data-unlock="${u.id}">解除</button>` : ''}
+                ${!isSelf ? (isBanned
+                  ? `<button class="btn btn--sm btn--secondary" data-unban="${u.id}">BAN解除</button>`
+                  : `<button class="btn btn--sm btn--danger" data-ban="${u.id}">BAN</button>`)
+                  : ''}
+                ${!isSelf && !isBanned ? `<button class="btn btn--sm btn--danger" data-delete="${u.id}">削除</button>` : ''}
               </td>
             </tr>`;
           }).join('')}
         </tbody>
       </table>
+      </div>
     `;
+    document.querySelectorAll('[data-ban]').forEach(btn => {
+      const user = users.find(u => u.id === parseInt(btn.dataset.ban));
+      btn.addEventListener('click', () => this._confirmBan(user));
+    });
+    document.querySelectorAll('[data-unban]').forEach(btn => {
+      const user = users.find(u => u.id === parseInt(btn.dataset.unban));
+      btn.addEventListener('click', () => this._confirmUnban(user));
+    });
+    document.querySelectorAll('[data-detail]').forEach(btn => {
+      const user = users.find(u => u.id === parseInt(btn.dataset.detail));
+      btn.addEventListener('click', () => this._openDetail(user));
+    });
     document.querySelectorAll('[data-edit]').forEach(btn => {
       const user = users.find(u => u.id === parseInt(btn.dataset.edit));
       btn.addEventListener('click', () => this._openForm(user));
@@ -102,6 +125,59 @@ const UsersPage = {
       const user = users.find(u => u.id === parseInt(btn.dataset.delete));
       btn.addEventListener('click', () => this._confirmDelete(user));
     });
+  },
+
+  async _openDetail(user) {
+    Modal.show(`${escapeHtml(user.display_name || user.username)} の詳細`, '<p class="loading">読み込み中...</p>', { confirmLabel: null });
+    try {
+      const res = await API.getUserProfile(user.id);
+      const { created_odai, created_tags } = res;
+
+      const odaiHTML = created_odai.length
+        ? `<div class="table-scroll"><table class="table">
+            <thead><tr><th>ファイル名</th><th>お気に入り</th><th class="hide-mobile">登録日時</th></tr></thead>
+            <tbody>${created_odai.map(o => `
+              <tr>
+                <td class="table__filename">${escapeHtml(o.filename)}</td>
+                <td>${o.is_favorite ? '★' : '—'}</td>
+                <td class="hide-mobile">${formatDate(o.added_at)}</td>
+              </tr>`).join('')}
+            </tbody>
+          </table></div>`
+        : '<p class="text-muted" style="padding:8px 0">まだお題を登録していません。</p>';
+
+      const tagsHTML = created_tags.length
+        ? `<div class="table-scroll"><table class="table">
+            <thead><tr><th>タグ名</th><th>説明</th><th>お気に入り</th></tr></thead>
+            <tbody>${created_tags.map(t => `
+              <tr>
+                <td><span class="tag-chip">${escapeHtml(t.name)}</span></td>
+                <td>${escapeHtml(t.description || '')}</td>
+                <td>${t.is_favorite ? '★' : '—'}</td>
+              </tr>`).join('')}
+            </tbody>
+          </table></div>`
+        : '<p class="text-muted" style="padding:8px 0">まだタグを登録していません。</p>';
+
+      const body = document.querySelector('.modal__body');
+      if (body) {
+        body.innerHTML = `
+          <div style="display:flex;flex-direction:column;gap:16px">
+            <div>
+              <div class="detail-section__title">🖼️ 登録したお題（${created_odai.length}件）</div>
+              ${odaiHTML}
+            </div>
+            <div>
+              <div class="detail-section__title">🏷️ 登録したタグ（${created_tags.length}件）</div>
+              ${tagsHTML}
+            </div>
+          </div>
+        `;
+      }
+    } catch (err) {
+      const body = document.querySelector('.modal__body');
+      if (body) body.innerHTML = `<p class="text-error">${escapeHtml(err.message)}</p>`;
+    }
   },
 
   _openForm(user = null) {
@@ -187,6 +263,38 @@ const UsersPage = {
     );
   },
 
+  _confirmBan(user) {
+    Modal.confirm(
+      'ユーザーをBAN',
+      `「${escapeHtml(user.username)}」をBANしますか？<br>BANされたユーザーはこのサーバーに再参加できなくなります。`,
+      async () => {
+        try {
+          await API.banUser(user.id);
+          Toast.success('BANしました');
+          await this._loadUsers();
+        } catch (err) {
+          Toast.error(err.message);
+        }
+      }
+    );
+  },
+
+  _confirmUnban(user) {
+    Modal.confirm(
+      'BAN解除',
+      `「${escapeHtml(user.username)}」のBANを解除しますか？`,
+      async () => {
+        try {
+          await API.unbanUser(user.id);
+          Toast.success('BAN解除しました');
+          await this._loadUsers();
+        } catch (err) {
+          Toast.error(err.message);
+        }
+      }
+    );
+  },
+
   _confirmDelete(user) {
     Modal.confirm(
       'ユーザー削除',
@@ -201,5 +309,163 @@ const UsersPage = {
         }
       }
     );
+  },
+
+  async _openBanList() {
+    Modal.show('BANリスト', '<p class="loading">読み込み中...</p>', {});
+    try {
+      const res = await API.getBans();
+      const bans = res.data || [];
+      const body = document.querySelector('.modal__body');
+      if (!body) return;
+
+      if (!bans.length) {
+        body.innerHTML = '<p class="text-muted">BANされているユーザーはいません。</p>';
+        return;
+      }
+
+      body.innerHTML = `
+        <div class="table-scroll">
+          <table class="table">
+            <thead><tr><th>ユーザー名</th><th>BAN日時</th><th>操作</th></tr></thead>
+            <tbody>
+              ${bans.map(b => `
+                <tr>
+                  <td>${escapeHtml(b.username)}</td>
+                  <td>${formatDate(b.banned_at)}</td>
+                  <td><button class="btn btn--sm btn--secondary" data-remove-ban="${b.id}">解除</button></td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+
+      body.querySelectorAll('[data-remove-ban]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          if (!confirm('このBANを解除しますか？')) return;
+          try {
+            await API.removeBan(parseInt(btn.dataset.removeBan));
+            Toast.success('BAN解除しました');
+            Modal.close();
+            await this._loadUsers();
+          } catch (err) {
+            Toast.error(err.message);
+          }
+        });
+      });
+    } catch (err) {
+      const body = document.querySelector('.modal__body');
+      if (body) body.innerHTML = `<p class="text-error">${escapeHtml(err.message)}</p>`;
+    }
+  },
+
+  _openInviteForm() {
+    const body = `
+      <div class="form">
+        <div class="form__group">
+          <label class="form__label">ユーザー名 <span class="required">*</span></label>
+          <input type="text" id="inv-username" class="form__input" placeholder="Discordユーザー名">
+        </div>
+        <div class="form__group">
+          <label class="form__label">役割 <span class="required">*</span></label>
+          <select id="inv-role" class="form__select">
+            <option value="user">ユーザー</option>
+            <option value="admin">管理者</option>
+          </select>
+        </div>
+        <div id="inv-error" class="form__error" hidden></div>
+        <div id="inv-result" class="invite-result" hidden>
+          <div style="font-size:13px;color:var(--text-muted)">招待URLをコピーして対象者に送ってください（24時間有効）</div>
+          <div class="invite-url-box">
+            <input type="text" id="inv-url" class="form__input" readonly>
+            <button class="btn btn--secondary" id="inv-copy-btn">コピー</button>
+          </div>
+        </div>
+      </div>
+    `;
+    Modal.show('招待発行', body, {
+      confirmLabel: '発行',
+      onConfirm: async () => {
+        const errorEl = document.getElementById('inv-error');
+        errorEl.hidden = true;
+        const username = document.getElementById('inv-username').value.trim();
+        const role = document.getElementById('inv-role').value;
+        if (!username) { errorEl.textContent = 'ユーザー名を入力してください'; errorEl.hidden = false; return; }
+        try {
+          const res = await API.createInvite(username, role);
+          const guildId = localStorage.getItem('guild_id');
+          const url = `${location.origin}${location.pathname}#/register?guild_id=${guildId}&invite=${res.invite_token}`;
+          const resultEl = document.getElementById('inv-result');
+          resultEl.hidden = false;
+          document.getElementById('inv-url').value = url;
+          document.getElementById('inv-copy-btn').addEventListener('click', () => {
+            navigator.clipboard.writeText(url).then(() => Toast.success('コピーしました'));
+          });
+          document.querySelector('.modal__footer .btn--primary')?.setAttribute('disabled', true);
+          Toast.success('招待URLを発行しました');
+        } catch (err) {
+          errorEl.textContent = err.message;
+          errorEl.hidden = false;
+        }
+      },
+    });
+  },
+
+  async _openInviteList() {
+    Modal.show('招待一覧', '<p class="loading">読み込み中...</p>', { confirmLabel: null });
+    try {
+      const res = await API.getInvites();
+      const invites = res.data || [];
+      const body = document.querySelector('.modal__body');
+      if (!body) return;
+
+      if (!invites.length) {
+        body.innerHTML = '<p class="text-muted">有効な招待はありません。</p>';
+        return;
+      }
+
+      const guildId = localStorage.getItem('guild_id');
+      body.innerHTML = `
+        <div class="table-scroll">
+          <table class="table">
+            <thead><tr><th>ユーザー名</th><th>役割</th><th>有効期限</th><th>操作</th></tr></thead>
+            <tbody>
+              ${invites.map(inv => `
+                <tr>
+                  <td>${escapeHtml(inv.username)}</td>
+                  <td><span class="badge badge--${inv.role}">${inv.role === 'admin' ? '管理者' : 'ユーザー'}</span></td>
+                  <td>${formatDate(inv.expires_at)}</td>
+                  <td class="table__actions">
+                    <button class="btn btn--sm btn--ghost" data-copy-inv="${inv.id}" data-token="${escapeHtml(inv.invite_token)}" data-guild="${escapeHtml(guildId)}">URLコピー</button>
+                    <button class="btn btn--sm btn--danger" data-revoke="${inv.id}">取り消し</button>
+                  </td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+
+      body.querySelectorAll('[data-copy-inv]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const url = `${location.origin}${location.pathname}#/register?guild_id=${btn.dataset.guild}&invite=${btn.dataset.token}`;
+          navigator.clipboard.writeText(url).then(() => Toast.success('コピーしました'));
+        });
+      });
+      body.querySelectorAll('[data-revoke]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          if (!confirm('この招待を取り消しますか？')) return;
+          try {
+            await API.revokeInvite(parseInt(btn.dataset.revoke));
+            Toast.success('招待を取り消しました');
+            Modal.close();
+          } catch (err) {
+            Toast.error(err.message);
+          }
+        });
+      });
+    } catch (err) {
+      const body = document.querySelector('.modal__body');
+      if (body) body.innerHTML = `<p class="text-error">${escapeHtml(err.message)}</p>`;
+    }
   },
 };

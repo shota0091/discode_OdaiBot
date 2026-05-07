@@ -48,7 +48,7 @@ const Layout = {
               <h1 class="topbar__title">${pageTitle}</h1>
             </div>
             <div class="topbar__user">
-              <span class="topbar__username">${escapeHtml(user.username || '')}</span>
+              <a href="#/dashboard/profile" class="topbar__username">${escapeHtml(user.display_name || user.username || '')}</a>
               <span class="badge badge--${role}">${isAdmin ? '管理者' : 'ユーザー'}</span>
               <button class="btn btn--ghost btn--sm" id="logout-btn">ログアウト</button>
             </div>

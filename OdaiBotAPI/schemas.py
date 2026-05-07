@@ -7,9 +7,9 @@ from pydantic import BaseModel, field_validator
 class OdaiUpdateRequest(BaseModel):
     filename: Optional[str] = None
     tags: Optional[List[str]] = None
-    used: Optional[bool] = None
     deleted: Optional[bool] = None
     is_favorite: Optional[bool] = None
+    memo: Optional[str] = None
 
 
 class TagCreateRequest(BaseModel):
@@ -76,6 +76,7 @@ class UserCreateRequest(BaseModel):
 
 class UserUpdateRequest(BaseModel):
     password: Optional[str] = None
+    current_password: Optional[str] = None
     role: Optional[str] = None
     display_name: Optional[str] = None
 
@@ -88,6 +89,7 @@ class UserResponse(BaseModel):
     login_attempts: int = 0
     locked_until: Optional[datetime] = None
     login_locked: bool = False
+    is_banned: bool = False
     created_at: datetime
     updated_at: datetime
 

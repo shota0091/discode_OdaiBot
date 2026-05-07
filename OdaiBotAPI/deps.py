@@ -55,8 +55,11 @@ def get_user_by_token(token: str, guild_id: int) -> Optional[dict]:
     return db.query_one(
         "SELECT u.id, ug.guild_id, u.username, ug.role "
         "FROM users u JOIN user_guilds ug ON u.id = ug.user_id "
-        "WHERE u.api_token = %s AND ug.guild_id = %s",
-        (token, guild_id),
+        "WHERE u.api_token = %s AND ug.guild_id = %s "
+        "AND NOT EXISTS ("
+        "  SELECT 1 FROM guild_bans gb WHERE gb.guild_id = %s AND gb.username = u.username"
+        ")",
+        (token, guild_id, guild_id),
     )
 
 

@@ -24,6 +24,7 @@ const Router = {
     '#/register':             RegisterPage,
     '#/reset-password':       ResetPasswordPage,
     '#/dashboard':            DashboardPage,
+    '#/dashboard/profile':    ProfilePage,
     '#/dashboard/users':      UsersPage,
     '#/dashboard/tags':       TagsPage,
     '#/dashboard/odai':       OdaiPage,

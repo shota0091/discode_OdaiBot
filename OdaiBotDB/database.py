@@ -104,7 +104,6 @@ class MySQLDatabase:
                 filename VARCHAR(255) NOT NULL,
                 storage_path VARCHAR(1024) NULL,
                 data LONGBLOB NOT NULL,
-                used TINYINT(1) NOT NULL DEFAULT 0,
                 added_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 deleted_at DATETIME,
                 UNIQUE KEY uq_guild_filename (guild_id, filename)
@@ -275,6 +274,14 @@ class MySQLDatabase:
                 "ALTER TABLE odai ADD COLUMN "
                 "is_favorite TINYINT(1) NOT NULL DEFAULT 0"
             )
+        # odai.used カラム削除マイグレーション（odai_usage テーブルで管理するため不要）
+        cursor.execute(
+            "SELECT COUNT(*) FROM information_schema.COLUMNS "
+            "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'odai' AND COLUMN_NAME = 'used'"
+        )
+        (col_count,) = cursor.fetchone()
+        if col_count > 0:
+            cursor.execute("ALTER TABLE odai DROP COLUMN used")
         # odai.created_by マイグレーション
         cursor.execute(
             "SELECT COUNT(*) FROM information_schema.COLUMNS "
@@ -373,6 +380,26 @@ class MySQLDatabase:
             if has_role:
                 cursor.execute("ALTER TABLE users DROP COLUMN role")
 
+        # guild_bans テーブル（BANされたユーザーは削除後も再参加不可）
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS guild_bans (
+                id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                guild_id BIGINT NOT NULL,
+                username VARCHAR(128) NOT NULL,
+                banned_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE KEY uq_guild_ban (guild_id, username)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+            """
+        )
+        # odai.memo マイグレーション
+        cursor.execute(
+            "SELECT COUNT(*) FROM information_schema.COLUMNS "
+            "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'odai' AND COLUMN_NAME = 'memo'"
+        )
+        (col_count,) = cursor.fetchone()
+        if col_count == 0:
+            cursor.execute("ALTER TABLE odai ADD COLUMN memo TEXT NULL")
         # login_attempts / locked_until / login_locked マイグレーション
         for col, definition in [
             ("login_attempts", "INT NOT NULL DEFAULT 0"),
