@@ -436,6 +436,11 @@ input, select, button, textarea { font-family: inherit; font-size: inherit; }
   border-radius: var(--radius);
   padding: 14px 16px;
 }
+.tab-bar { display: flex; gap: 4px; border-bottom: 2px solid var(--border); margin-bottom: 20px; }
+.tab-btn { background: none; border: none; padding: 8px 18px; font-size: 14px; color: var(--text-muted); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: color 0.15s; }
+.tab-btn:hover { color: var(--text); }
+.tab-btn--active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 600; }
+
 .invite-url-box { display: flex; gap: 8px; margin-top: 10px; }
 .invite-url-box .form__input { flex: 1; font-size: 12px; }
 

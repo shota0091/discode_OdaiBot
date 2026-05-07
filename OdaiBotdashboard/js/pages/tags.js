@@ -1,5 +1,7 @@
 const TagsPage = {
   _tags: [],
+  _sortKey: 'created_at',
+  _sortDir: 'desc',
 
   render() {
     return Layout.render('タグ管理', `
@@ -13,6 +15,8 @@ const TagsPage = {
 
   async init() {
     Layout.bindLogout();
+    this._sortKey = 'created_at';
+    this._sortDir = 'desc';
     document.getElementById('create-tag-btn').addEventListener('click', () => this._openForm());
     document.getElementById('tag-search').addEventListener('input', async e => {
       await this._loadTags(e.target.value);
@@ -35,14 +39,37 @@ const TagsPage = {
       document.getElementById('tags-table-root').innerHTML = '<p class="text-muted">タグが登録されていません。</p>';
       return;
     }
+
+    const icon = (key) => {
+      if (this._sortKey !== key) return '<span class="sort-icon">⇅</span>';
+      return this._sortDir === 'asc'
+        ? '<span class="sort-icon sort-icon--active">▲</span>'
+        : '<span class="sort-icon sort-icon--active">▼</span>';
+    };
+
+    const sorted = [...this._tags].sort((a, b) => {
+      const av = (a[this._sortKey] ?? '').toString().toLowerCase();
+      const bv = (b[this._sortKey] ?? '').toString().toLowerCase();
+      const cmp = av < bv ? -1 : av > bv ? 1 : 0;
+      return this._sortDir === 'asc' ? cmp : -cmp;
+    });
+
     document.getElementById('tags-table-root').innerHTML = `
       <div class="table-scroll">
       <table class="table">
         <thead>
-          <tr><th></th><th>タグ名</th><th>説明</th><th class="hide-mobile">登録者</th><th class="hide-mobile">作成日時</th><th>操作</th></tr>
+          <tr>
+            <th></th>
+            <th>タグ名</th>
+            <th>説明</th>
+            <th class="hide-mobile">登録者</th>
+            <th class="hide-mobile"><button class="sort-btn" data-sort="created_at">作成日時 ${icon('created_at')}</button></th>
+            <th class="hide-mobile"><button class="sort-btn" data-sort="updated_at">更新日時 ${icon('updated_at')}</button></th>
+            <th>操作</th>
+          </tr>
         </thead>
         <tbody>
-          ${this._tags.map(t => `
+          ${sorted.map(t => `
             <tr>
               <td class="col-fav">
                 <button class="btn--fav ${t.is_favorite ? 'btn--fav--active' : ''}" data-fav="${t.id}" title="${t.is_favorite ? 'お気に入り解除' : 'お気に入りに追加'}">
@@ -53,6 +80,7 @@ const TagsPage = {
               <td>${escapeHtml(t.description || '')}</td>
               <td class="hide-mobile">${escapeHtml(t.created_by_name || '—')}</td>
               <td class="hide-mobile">${formatDate(t.created_at)}</td>
+              <td class="hide-mobile">${formatDate(t.updated_at)}</td>
               <td class="table__actions">
                 <button class="btn btn--sm btn--secondary" data-detail="${t.id}">詳細</button>
                 <button class="btn btn--sm btn--ghost" data-edit="${t.id}">編集</button>
@@ -64,6 +92,19 @@ const TagsPage = {
       </table>
       </div>
     `;
+
+    document.querySelectorAll('.sort-btn[data-sort]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const key = btn.dataset.sort;
+        if (this._sortKey === key) {
+          this._sortDir = this._sortDir === 'asc' ? 'desc' : 'asc';
+        } else {
+          this._sortKey = key;
+          this._sortDir = 'desc';
+        }
+        this._renderTable();
+      });
+    });
 
     document.querySelectorAll('[data-fav]').forEach(btn => {
       btn.addEventListener('click', async () => {

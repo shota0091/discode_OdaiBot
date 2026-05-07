@@ -30,6 +30,7 @@ const Router = {
     '#/dashboard/odai':       OdaiPage,
     '#/dashboard/schedules':  SchedulesPage,
     '#/dashboard/settings':   SettingsPage,
+    '#/dashboard/invites':    InvitesPage,
   },
 
   _isAuth() { return !!localStorage.getItem('access_token'); },

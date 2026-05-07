@@ -43,25 +43,6 @@ const SettingsPage = {
           </form>
         </div>
 
-        <div class="section">
-          <h2 class="section__title">招待リンク発行</h2>
-          <form id="invite-form" class="form form--inline">
-            <div class="form__group">
-              <label class="form__label">ユーザー名 <span class="required">*</span></label>
-              <input type="text" id="i-username" class="form__input" placeholder="招待するユーザー名">
-            </div>
-            <div class="form__group">
-              <label class="form__label">役割</label>
-              <select id="i-role" class="form__select">
-                <option value="user">ユーザー</option>
-                <option value="admin">管理者</option>
-              </select>
-            </div>
-            <div id="i-error" class="form__error" hidden></div>
-            <button type="submit" class="btn btn--secondary" id="i-invite-btn">招待リンク発行</button>
-          </form>
-          <div id="invite-result" hidden class="invite-result"></div>
-        </div>
         ` : '<p class="text-muted">設定変更は管理者のみ可能です。</p>'}
       `;
 
@@ -91,49 +72,5 @@ const SettingsPage = {
       }
     });
 
-    document.getElementById('invite-form').addEventListener('submit', async e => {
-      e.preventDefault();
-      const errorEl = document.getElementById('i-error');
-      errorEl.hidden = true;
-      const resultEl = document.getElementById('invite-result');
-      resultEl.hidden = true;
-      const btn = document.getElementById('i-invite-btn');
-      btn.disabled = true;
-
-      const username = document.getElementById('i-username').value.trim();
-      const role = document.getElementById('i-role').value;
-
-      if (!username) {
-        errorEl.textContent = 'ユーザー名を入力してください';
-        errorEl.hidden = false;
-        btn.disabled = false;
-        return;
-      }
-
-      try {
-        const data = await API.createInvite(username, role);
-        const guildId = localStorage.getItem('guild_id') || '';
-        const base = location.origin + location.pathname;
-        const inviteUrl = `${base}#/register?guild_id=${encodeURIComponent(guildId)}&invite=${encodeURIComponent(data.invite_token)}`;
-        resultEl.innerHTML = `
-          <p><strong>招待リンクが発行されました</strong>（有効期限: ${formatDate(data.expires_at)}）</p>
-          <div class="invite-url-box">
-            <input type="text" id="invite-url-input" class="form__input" value="${escapeHtml(inviteUrl)}" readonly>
-            <button class="btn btn--sm btn--secondary" id="copy-invite-btn">コピー</button>
-          </div>
-        `;
-        resultEl.hidden = false;
-        document.getElementById('copy-invite-btn').addEventListener('click', () => {
-          navigator.clipboard.writeText(inviteUrl).then(() => Toast.success('クリップボードにコピーしました'));
-        });
-        document.getElementById('i-username').value = '';
-        Toast.success('招待リンクを発行しました');
-      } catch (err) {
-        errorEl.textContent = err.message;
-        errorEl.hidden = false;
-      } finally {
-        btn.disabled = false;
-      }
-    });
   },
 };

@@ -20,6 +20,7 @@ const OdaiPage = {
           <option value="used">使用済み</option>
         </select>
         <button class="btn btn--ghost btn--sm" id="filter-fav-btn" title="お気に入りのみ表示">☆ お気に入り</button>
+        <input type="text" id="filter-memo" class="form__input form__input--sm" placeholder="📝 メモ検索...">
         <button class="btn btn--primary" id="upload-odai-btn">＋ お題追加</button>
       </div>
       <div id="bulk-action-bar" class="bulk-action-bar" hidden>
@@ -35,6 +36,7 @@ const OdaiPage = {
     Layout.bindLogout();
     this._filterStatus = '';
     this._filterFavoriteOnly = false;
+    this._filterMemoQuery = '';
 
     try {
       const res = await API.getTags();
@@ -62,6 +64,10 @@ const OdaiPage = {
         btn.classList.toggle('btn--warning', this._filterFavoriteOnly);
         btn.classList.toggle('btn--ghost', !this._filterFavoriteOnly);
       }
+      this._renderTable();
+    });
+    document.getElementById('filter-memo').addEventListener('input', e => {
+      this._filterMemoQuery = e.target.value.trim().toLowerCase();
       this._renderTable();
     });
     document.getElementById('upload-odai-btn').addEventListener('click', () => this._openUploadForm());
@@ -105,6 +111,9 @@ const OdaiPage = {
     }
     if (this._filterFavoriteOnly) {
       list = list.filter(o => o.is_favorite);
+    }
+    if (this._filterMemoQuery) {
+      list = list.filter(o => o.memo && o.memo.toLowerCase().includes(this._filterMemoQuery));
     }
 
     if (!list.length) {
@@ -150,6 +159,7 @@ const OdaiPage = {
               <th>使用状況</th>
               <th class="hide-mobile">登録者</th>
               <th class="hide-mobile"><button class="sort-btn" data-sort="added_at">登録日時 ${icon('added_at')}</button></th>
+              <th class="hide-mobile"><button class="sort-btn" data-sort="updated_at">更新日時 ${icon('updated_at')}</button></th>
               <th>操作</th>
             </tr>
           </thead>
@@ -171,6 +181,7 @@ const OdaiPage = {
                 <td><span class="badge badge--${status.cls}">${status.label}</span></td>
                 <td class="hide-mobile">${escapeHtml(o.created_by_name || '—')}</td>
                 <td class="hide-mobile">${formatDate(o.added_at)}</td>
+                <td class="hide-mobile">${formatDate(o.updated_at)}</td>
                 <td class="table__actions">
                   <button class="btn btn--sm btn--secondary" data-detail="${o.id}">詳細</button>
                 </td>

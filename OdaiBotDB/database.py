@@ -105,6 +105,7 @@ class MySQLDatabase:
                 storage_path VARCHAR(1024) NULL,
                 data LONGBLOB NOT NULL,
                 added_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                 deleted_at DATETIME,
                 UNIQUE KEY uq_guild_filename (guild_id, filename)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -392,14 +393,19 @@ class MySQLDatabase:
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
             """
         )
-        # odai.memo マイグレーション
-        cursor.execute(
-            "SELECT COUNT(*) FROM information_schema.COLUMNS "
-            "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'odai' AND COLUMN_NAME = 'memo'"
-        )
-        (col_count,) = cursor.fetchone()
-        if col_count == 0:
-            cursor.execute("ALTER TABLE odai ADD COLUMN memo TEXT NULL")
+        # odai.memo / odai.updated_at マイグレーション
+        for col, definition in [
+            ("memo", "TEXT NULL"),
+            ("updated_at", "DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"),
+        ]:
+            cursor.execute(
+                "SELECT COUNT(*) FROM information_schema.COLUMNS "
+                "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'odai' AND COLUMN_NAME = %s",
+                (col,),
+            )
+            (col_count,) = cursor.fetchone()
+            if col_count == 0:
+                cursor.execute(f"ALTER TABLE odai ADD COLUMN {col} {definition}")
         # login_attempts / locked_until / login_locked マイグレーション
         for col, definition in [
             ("login_attempts", "INT NOT NULL DEFAULT 0"),

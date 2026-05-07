@@ -14,7 +14,10 @@ const Layout = {
       { href: '#/dashboard/tags', label: 'タグ管理', icon: '🏷️' },
       { href: '#/dashboard/schedules', label: 'スケジュール管理', icon: '📅' },
       { href: '#/dashboard/settings', label: '設定', icon: '⚙️' },
-      ...(isAdmin ? [{ href: '#/dashboard/users', label: 'ユーザー管理', icon: '👥' }] : []),
+      ...(isAdmin ? [
+        { href: '#/dashboard/users', label: 'ユーザー管理', icon: '👥' },
+        { href: '#/dashboard/invites', label: '招待管理', icon: '🔗' },
+      ] : []),
     ];
 
     const guildWidget = guilds.length > 1

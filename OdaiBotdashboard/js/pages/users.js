@@ -6,9 +6,6 @@ const UsersPage = {
       <div class="page-actions">
         <input type="text" id="user-search" class="form__input" placeholder="ユーザー名・表示名で検索" style="max-width:260px;">
         <button class="btn btn--ghost" id="ban-list-btn">🚫 BANリスト</button>
-        <button class="btn btn--ghost" id="invite-list-btn">📋 招待一覧</button>
-        <button class="btn btn--secondary" id="create-invite-btn">🔗 招待発行</button>
-        <button class="btn btn--primary" id="create-user-btn">＋ ユーザー作成</button>
       </div>
       <div id="users-table-root"><p class="loading">読み込み中...</p></div>
     `);
@@ -20,9 +17,6 @@ const UsersPage = {
       location.hash = '#/dashboard/profile';
       return;
     }
-    document.getElementById('create-user-btn')?.addEventListener('click', () => this._openForm());
-    document.getElementById('create-invite-btn')?.addEventListener('click', () => this._openInviteForm());
-    document.getElementById('invite-list-btn')?.addEventListener('click', () => this._openInviteList());
     document.getElementById('ban-list-btn')?.addEventListener('click', () => this._openBanList());
     document.getElementById('user-search')?.addEventListener('input', e => {
       this._renderTable(e.target.value.trim());
@@ -194,10 +188,11 @@ const UsersPage = {
           <label class="form__label">表示名${user ? '（変更する場合のみ入力）' : ''}</label>
           <input type="text" id="f-display-name" class="form__input" placeholder="未入力の場合はユーザー名を使用" value="${escapeHtml(user?.display_name || '')}">
         </div>
+        ${!user ? `
         <div class="form__group">
-          <label class="form__label">パスワード${user ? '（変更する場合のみ入力）' : ' <span class="required">*</span>'}</label>
+          <label class="form__label">パスワード <span class="required">*</span></label>
           <input type="password" id="f-password" class="form__input" placeholder="8文字以上">
-        </div>
+        </div>` : ''}
         ${isAdmin ? `
         <div class="form__group">
           <label class="form__label">役割 <span class="required">*</span></label>
@@ -213,27 +208,20 @@ const UsersPage = {
       onConfirm: async () => {
         const errorEl = document.getElementById('f-error');
         errorEl.hidden = true;
-        const password = document.getElementById('f-password').value;
         const role = isAdmin ? document.getElementById('f-role').value : null;
-
-        if (password && password.length < 8) {
-          errorEl.textContent = 'パスワードは8文字以上で入力してください';
-          errorEl.hidden = false;
-          return;
-        }
-
         const displayName = document.getElementById('f-display-name').value.trim() || null;
         try {
           if (user) {
             const data = {};
-            if (password) data.password = password;
             if (role && role !== user.role) data.role = role;
             if (displayName !== (user.display_name || null)) data.display_name = displayName;
             await API.updateUser(user.id, data);
           } else {
             const username = document.getElementById('f-username').value.trim();
+            const password = document.getElementById('f-password').value;
             if (!username) { errorEl.textContent = 'ユーザー名を入力してください'; errorEl.hidden = false; return; }
             if (!password) { errorEl.textContent = 'パスワードを入力してください'; errorEl.hidden = false; return; }
+            if (password.length < 8) { errorEl.textContent = 'パスワードは8文字以上で入力してください'; errorEl.hidden = false; return; }
             await API.createUser(username, password, role || 'user', displayName);
           }
           Modal.close();
@@ -359,113 +347,4 @@ const UsersPage = {
     }
   },
 
-  _openInviteForm() {
-    const body = `
-      <div class="form">
-        <div class="form__group">
-          <label class="form__label">ユーザー名 <span class="required">*</span></label>
-          <input type="text" id="inv-username" class="form__input" placeholder="Discordユーザー名">
-        </div>
-        <div class="form__group">
-          <label class="form__label">役割 <span class="required">*</span></label>
-          <select id="inv-role" class="form__select">
-            <option value="user">ユーザー</option>
-            <option value="admin">管理者</option>
-          </select>
-        </div>
-        <div id="inv-error" class="form__error" hidden></div>
-        <div id="inv-result" class="invite-result" hidden>
-          <div style="font-size:13px;color:var(--text-muted)">招待URLをコピーして対象者に送ってください（24時間有効）</div>
-          <div class="invite-url-box">
-            <input type="text" id="inv-url" class="form__input" readonly>
-            <button class="btn btn--secondary" id="inv-copy-btn">コピー</button>
-          </div>
-        </div>
-      </div>
-    `;
-    Modal.show('招待発行', body, {
-      confirmLabel: '発行',
-      onConfirm: async () => {
-        const errorEl = document.getElementById('inv-error');
-        errorEl.hidden = true;
-        const username = document.getElementById('inv-username').value.trim();
-        const role = document.getElementById('inv-role').value;
-        if (!username) { errorEl.textContent = 'ユーザー名を入力してください'; errorEl.hidden = false; return; }
-        try {
-          const res = await API.createInvite(username, role);
-          const guildId = localStorage.getItem('guild_id');
-          const url = `${location.origin}${location.pathname}#/register?guild_id=${guildId}&invite=${res.invite_token}`;
-          const resultEl = document.getElementById('inv-result');
-          resultEl.hidden = false;
-          document.getElementById('inv-url').value = url;
-          document.getElementById('inv-copy-btn').addEventListener('click', () => {
-            navigator.clipboard.writeText(url).then(() => Toast.success('コピーしました'));
-          });
-          document.querySelector('.modal__footer .btn--primary')?.setAttribute('disabled', true);
-          Toast.success('招待URLを発行しました');
-        } catch (err) {
-          errorEl.textContent = err.message;
-          errorEl.hidden = false;
-        }
-      },
-    });
-  },
-
-  async _openInviteList() {
-    Modal.show('招待一覧', '<p class="loading">読み込み中...</p>', { confirmLabel: null });
-    try {
-      const res = await API.getInvites();
-      const invites = res.data || [];
-      const body = document.querySelector('.modal__body');
-      if (!body) return;
-
-      if (!invites.length) {
-        body.innerHTML = '<p class="text-muted">有効な招待はありません。</p>';
-        return;
-      }
-
-      const guildId = localStorage.getItem('guild_id');
-      body.innerHTML = `
-        <div class="table-scroll">
-          <table class="table">
-            <thead><tr><th>ユーザー名</th><th>役割</th><th>有効期限</th><th>操作</th></tr></thead>
-            <tbody>
-              ${invites.map(inv => `
-                <tr>
-                  <td>${escapeHtml(inv.username)}</td>
-                  <td><span class="badge badge--${inv.role}">${inv.role === 'admin' ? '管理者' : 'ユーザー'}</span></td>
-                  <td>${formatDate(inv.expires_at)}</td>
-                  <td class="table__actions">
-                    <button class="btn btn--sm btn--ghost" data-copy-inv="${inv.id}" data-token="${escapeHtml(inv.invite_token)}" data-guild="${escapeHtml(guildId)}">URLコピー</button>
-                    <button class="btn btn--sm btn--danger" data-revoke="${inv.id}">取り消し</button>
-                  </td>
-                </tr>`).join('')}
-            </tbody>
-          </table>
-        </div>
-      `;
-
-      body.querySelectorAll('[data-copy-inv]').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const url = `${location.origin}${location.pathname}#/register?guild_id=${btn.dataset.guild}&invite=${btn.dataset.token}`;
-          navigator.clipboard.writeText(url).then(() => Toast.success('コピーしました'));
-        });
-      });
-      body.querySelectorAll('[data-revoke]').forEach(btn => {
-        btn.addEventListener('click', async () => {
-          if (!confirm('この招待を取り消しますか？')) return;
-          try {
-            await API.revokeInvite(parseInt(btn.dataset.revoke));
-            Toast.success('招待を取り消しました');
-            Modal.close();
-          } catch (err) {
-            Toast.error(err.message);
-          }
-        });
-      });
-    } catch (err) {
-      const body = document.querySelector('.modal__body');
-      if (body) body.innerHTML = `<p class="text-error">${escapeHtml(err.message)}</p>`;
-    }
-  },
 };
