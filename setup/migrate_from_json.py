@@ -17,6 +17,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import shutil
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -32,6 +33,7 @@ from OdaiBotDB.database import MySQLDatabase
 
 DATA_DIR = _root / "Data"
 TEMPLATES_DIR = _root / "templates"
+_IMAGE_DIR = Path(os.getenv("ODAI_IMAGE_DIR", "/data/odai"))
 
 MAX_IMAGE_BYTES = 8 * 1024 * 1024  # 8 MB
 
@@ -110,21 +112,24 @@ def migrate_guild(db: MySQLDatabase, guild_id: int) -> dict:
                 result["odai_error"] += 1
                 continue
 
-            data = image_path.read_bytes()
-            used = 1 if odai.get("used") else 0
+            dest_dir = _IMAGE_DIR / str(guild_id)
+            dest_dir.mkdir(parents=True, exist_ok=True)
+            dest = dest_dir / filename
+            shutil.copy2(image_path, dest)
+
             added_at = _parse_added_at(odai.get("added_at"))
 
             if added_at:
                 db.execute(
-                    "INSERT INTO odai (guild_id, filename, data, used, added_at) "
-                    "VALUES (%s, %s, %s, %s, %s)",
-                    (guild_id, filename, data, used, added_at), commit=True,
+                    "INSERT INTO odai (guild_id, filename, storage_path, added_at) "
+                    "VALUES (%s, %s, %s, %s)",
+                    (guild_id, filename, str(dest), added_at), commit=True,
                 )
             else:
                 db.execute(
-                    "INSERT INTO odai (guild_id, filename, data, used) "
-                    "VALUES (%s, %s, %s, %s)",
-                    (guild_id, filename, data, used), commit=True,
+                    "INSERT INTO odai (guild_id, filename, storage_path) "
+                    "VALUES (%s, %s, %s)",
+                    (guild_id, filename, str(dest)), commit=True,
                 )
             result["odai_inserted"] += 1
 

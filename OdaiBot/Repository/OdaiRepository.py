@@ -95,8 +95,8 @@ class OdaiRepository:
         img_path.write_bytes(content)
 
         cursor = self.db.execute(
-            "INSERT INTO odai (guild_id, filename, storage_path, data, created_by) VALUES (%s, %s, %s, %s, %s)",
-            (guild_id, filename, str(img_path), None, created_by),
+            "INSERT INTO odai (guild_id, filename, storage_path, created_by) VALUES (%s, %s, %s, %s)",
+            (guild_id, filename, str(img_path), created_by),
             commit=True,
         )
         odai_id = cursor.lastrowid
@@ -115,7 +115,7 @@ class OdaiRepository:
 
     def get_odai_data(self, odai_id: int):
         row = self.db.query_one(
-            "SELECT id, filename, storage_path, data FROM odai WHERE id = %s AND deleted_at IS NULL",
+            "SELECT id, filename, storage_path FROM odai WHERE id = %s AND deleted_at IS NULL",
             (odai_id,),
         )
         if not row:

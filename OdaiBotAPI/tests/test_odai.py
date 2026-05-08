@@ -14,7 +14,7 @@ _NOW = datetime.utcnow()
 _ODAI_ROW = {
     "id": 1, "guild_id": 111222333444555666,
     "filename": "odai1.jpg", "storage_path": "/path/odai1.jpg",
-    "used": 0, "added_at": _NOW, "deleted_at": None,
+    "added_at": _NOW, "deleted_at": None,
 }
 
 
@@ -38,10 +38,10 @@ class TestListOdai:
         res = admin_client.get(self._url, params={"tag": "日常"})
         assert res.status_code == 200
 
-    def test_filter_by_used(self, admin_client):
+    def test_filter_by_favorite(self, admin_client):
         deps.db.query.return_value = []
 
-        res = admin_client.get(self._url, params={"used": "false"})
+        res = admin_client.get(self._url, params={"favorite": "true"})
         assert res.status_code == 200
 
     def test_unauthenticated_returns_401(self, anon_client):
@@ -100,13 +100,13 @@ class TestUpdateOdai:
         deps.odai_repo.get_tags.return_value = ["日常"]
         deps.db.execute.return_value = make_cursor()
 
-        res = admin_client.put(f"{BASE}/odai/1", json={"used": True})
+        res = admin_client.put(f"{BASE}/odai/1", json={"is_favorite": True})
         assert res.status_code == 200
 
     def test_not_found_returns_404(self, admin_client):
         deps.db.query_one.return_value = None
 
-        res = admin_client.put(f"{BASE}/odai/999", json={"used": True})
+        res = admin_client.put(f"{BASE}/odai/999", json={"is_favorite": True})
         assert res.status_code == 404
 
 

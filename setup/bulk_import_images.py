@@ -9,24 +9,27 @@ images ディレクトリの画像を odai テーブルに一括登録するス�
 
 --dry-run をつけると登録せず件数確認のみ行います。
 既に同じ (guild_id, filename) が登録済みの場合はスキップします。
+画像は ODAI_IMAGE_DIR/{guild_id}/filename にコピーされ、DBには storage_path を保存します。
 """
 from __future__ import annotations
 
 import argparse
+import os
+import shutil
 import sys
 from pathlib import Path
 
-_root = Path(__file__).resolve().parent
+_root = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_root))
 
 from dotenv import load_dotenv
-load_dotenv(_root / "OdaiBot" / ".env")
 load_dotenv(_root / ".env")
 
 from OdaiBotDB.database import MySQLDatabase
 
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".gif", ".webp"}
 MAX_IMAGE_BYTES = 8 * 1024 * 1024  # 8 MB
+_IMAGE_DIR = Path(os.getenv("ODAI_IMAGE_DIR", "/data/odai"))
 
 DEFAULT_GUILD_IDS = [1315559712179228672, 1396823594411098223]
 
@@ -42,7 +45,8 @@ def bulk_import(image_dir: Path, guild_ids: list[int], dry_run: bool) -> None:
         return
 
     print(f"{'[DRY RUN] ' if dry_run else ''}対象画像: {len(files)} 件")
-    print(f"対象サーバーID: {guild_ids}\n")
+    print(f"対象サーバーID: {guild_ids}")
+    print(f"保存先: {_IMAGE_DIR}\n")
 
     if dry_run:
         for f in files:
@@ -61,6 +65,9 @@ def bulk_import(image_dir: Path, guild_ids: list[int], dry_run: bool) -> None:
         print(f"{'─' * 50}")
         print(f"🔄 Guild ID: {guild_id}")
         inserted = skipped = error = 0
+
+        dest_dir = _IMAGE_DIR / str(guild_id)
+        dest_dir.mkdir(parents=True, exist_ok=True)
 
         # guild_settings がなければ作成
         if not db.query_one("SELECT id FROM guild_settings WHERE guild_id = %s", (guild_id,)):
@@ -86,10 +93,11 @@ def bulk_import(image_dir: Path, guild_ids: list[int], dry_run: bool) -> None:
                 continue
 
             try:
-                data = f.read_bytes()
+                dest = dest_dir / f.name
+                shutil.copy2(f, dest)
                 db.execute(
-                    "INSERT INTO odai (guild_id, filename, data, used) VALUES (%s, %s, %s, 0)",
-                    (guild_id, f.name, data), commit=True,
+                    "INSERT INTO odai (guild_id, filename, storage_path) VALUES (%s, %s, %s)",
+                    (guild_id, f.name, str(dest)), commit=True,
                 )
                 inserted += 1
                 print(f"  [{inserted}] {f.name}")

@@ -90,7 +90,6 @@ class MySQLDatabase:
                 guild_name VARCHAR(128) DEFAULT NULL,
                 bot_enabled TINYINT(1) NOT NULL DEFAULT 1,
                 timezone VARCHAR(64),
-                dashboard_role VARCHAR(128),
                 created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -103,7 +102,6 @@ class MySQLDatabase:
                 guild_id BIGINT NOT NULL,
                 filename VARCHAR(255) NOT NULL,
                 storage_path VARCHAR(1024) NULL,
-                data LONGBLOB NOT NULL,
                 added_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                 deleted_at DATETIME,
@@ -406,14 +404,22 @@ class MySQLDatabase:
             (col_count,) = cursor.fetchone()
             if col_count == 0:
                 cursor.execute(f"ALTER TABLE odai ADD COLUMN {col} {definition}")
-        # data カラムを nullable に（ローカルファイル管理化のため）
+        # odai.data カラム削除（ローカルファイル管理化により不要）
         cursor.execute(
-            "SELECT IS_NULLABLE FROM information_schema.COLUMNS "
+            "SELECT COUNT(*) FROM information_schema.COLUMNS "
             "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'odai' AND COLUMN_NAME = 'data'"
         )
-        (is_nullable,) = cursor.fetchone()
-        if is_nullable == 'NO':
-            cursor.execute("ALTER TABLE odai MODIFY COLUMN data LONGBLOB NULL")
+        (col_count,) = cursor.fetchone()
+        if col_count > 0:
+            cursor.execute("ALTER TABLE odai DROP COLUMN data")
+        # guild_settings.dashboard_role カラム削除（未使用）
+        cursor.execute(
+            "SELECT COUNT(*) FROM information_schema.COLUMNS "
+            "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'guild_settings' AND COLUMN_NAME = 'dashboard_role'"
+        )
+        (col_count,) = cursor.fetchone()
+        if col_count > 0:
+            cursor.execute("ALTER TABLE guild_settings DROP COLUMN dashboard_role")
 
         # login_attempts / locked_until / login_locked マイグレーション
         for col, definition in [
