@@ -105,6 +105,13 @@ MYSQL_DATABASE=odai_bot
 DISCORD_BOT_TOKEN=（Discordトークン）
 DASHBOARD_BASE_URL=https://odaibot-dashboard.com
 INVITE_EXPIRE_HOURS=1
+
+# お題画像の保存先
+ODAI_IMAGE_DIR=/data/odai
+
+# バックアップ設定
+BACKUP_DIR=/home/shota/backups/odaibot
+BACKUP_KEEP_DAYS=7
 ```
 
 ---
@@ -156,32 +163,72 @@ python -m OdaiBotDB.setup_db
 
 その後、Dashboard ユーザーは `/odai_dashboard` コマンドで再招待して再登録する。
 
-### 12. お題画像の登録
+### 12. 画像保存ディレクトリの作成
+
+お題画像はローカルファイルとして管理します（`ODAI_IMAGE_DIR` 配下）。
+
+```bash
+sudo mkdir -p /data/odai
+sudo chown shota:shota /data/odai
+```
+
+### 13. お題画像の登録
 
 **新規インストール時（JSONからの移行がない場合）:**
 ```bash
 # ローカルPCから画像をサーバーへ転送
 scp -r -i ~/.ssh/id_ed25519 ./images shota@133.18.120.136:/home/shota/bots/discode_OdaiBot/images
 
-# サーバー上で一括登録
+# サーバー上で一括登録（setup/ 配下のスクリプトを使用）
 cd ~/bots/discode_OdaiBot
 source venv/bin/activate
-python bulk_import_images.py --dry-run   # 確認
-python bulk_import_images.py             # 本番登録
+python setup/bulk_import_images.py --dry-run   # 確認
+python setup/bulk_import_images.py             # 本番登録
 ```
 
 **旧データ（JSON）からの移行がある場合:**
 ```bash
-python -m OdaiBotDB.migrate_from_json
+python setup/migrate_from_json.py
 ```
 - `Data/{guild_id}_odai.json` と `templates/{guild_id}/` の画像をDBに移行
 - 冪等実行可能（重複スキップ）
+
+**既存 DB の画像を LONGBLOB → ローカルファイルへ移行する場合:**
+```bash
+python setup/migrate_odai_to_local.py
+```
+- DB の `data` カラム（LONGBLOB）から画像を読み出し、`ODAI_IMAGE_DIR/{guild_id}/filename` に書き出す
+- 移行後は `data = NULL`、`storage_path = 実ファイルパス` に更新
+- 冪等実行可能（既にファイルが存在する場合はスキップ）
+
+### 14. バックアップの設定
+
+```bash
+# バックアップ保存先ディレクトリを作成
+mkdir -p /home/shota/backups/odaibot
+
+# 動作確認（手動実行）
+bash /home/shota/bots/discode_OdaiBot/scripts/backup.sh
+
+# cron 登録（毎日午前3時に自動実行）
+crontab -e
+```
+
+crontab に以下を追加:
+```
+0 3 * * * /home/shota/bots/discode_OdaiBot/scripts/backup.sh >> /home/shota/backups/odaibot/backup.log 2>&1
+```
+
+バックアップ内容:
+- `db.sql.gz` — MySQL ダンプ
+- `images.tar.gz` — `ODAI_IMAGE_DIR` 配下の画像ファイル一式
+- `BACKUP_KEEP_DAYS` 日超の古いバックアップは自動削除
 
 ---
 
 ## Phase 5: systemdサービス設定
 
-### 13. odaibot.service 更新
+### 15. odaibot.service 更新
 ```bash
 sudo vi /etc/systemd/system/odaibot.service
 ```
@@ -191,7 +238,7 @@ sudo vi /etc/systemd/system/odaibot.service
 ExecStart=/home/shota/bots/discode_OdaiBot/venv/bin/python OdaiBot/odai_bot.py
 ```
 
-### 14. odaibotapi.service 新規作成
+### 16. odaibotapi.service 新規作成
 ```bash
 sudo vi /etc/systemd/system/odaibotapi.service
 ```
@@ -216,7 +263,7 @@ Environment="PYTHONIOENCODING=utf-8"
 WantedBy=multi-user.target
 ```
 
-### 15. サービス反映・起動
+### 17. サービス反映・起動
 ```bash
 sudo systemctl daemon-reload
 sudo systemctl enable odaibotapi
@@ -228,7 +275,7 @@ sudo systemctl restart odaibot
 
 ## Phase 6: Nginx設定
 
-### 16. Nginx設定ファイル作成
+### 18. Nginx設定ファイル作成
 ```bash
 sudo vi /etc/nginx/conf.d/odaibot.conf
 ```
@@ -254,7 +301,7 @@ server {
 
 ※ Certbot実行後はHTTPS設定が自動追記される
 
-### 17. ディレクトリのパーミッション設定
+### 19. ディレクトリのパーミッション設定
 nginxがhomeディレクトリにアクセスできるよう実行権限を付与：
 ```bash
 chmod o+x /home/shota
@@ -264,7 +311,7 @@ chmod o+x /home/shota/bots/discode_OdaiBot/OdaiBotdashboard
 sudo systemctl reload nginx
 ```
 
-### 18. Nginx設定テスト・反映
+### 20. Nginx設定テスト・反映
 ```bash
 sudo nginx -t
 sudo systemctl reload nginx
@@ -274,7 +321,7 @@ sudo systemctl reload nginx
 
 ## Phase 7: 自動デプロイ設定
 
-### 19. update_odaibot.sh
+### 21. update_odaibot.sh
 ```bash
 vi ~/bots/update_odaibot.sh
 ```
@@ -310,7 +357,7 @@ shota ALL=(ALL) NOPASSWD: /bin/systemctl restart odaibot
 shota ALL=(ALL) NOPASSWD: /bin/systemctl restart odaibotapi
 ```
 
-### 20. GitHub Webhook設定
+### 22. GitHub Webhook設定
 GitHub リポジトリ → Settings → Webhooks → Add webhook
 
 | 項目 | 値 |

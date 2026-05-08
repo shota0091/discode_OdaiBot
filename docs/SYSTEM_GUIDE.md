@@ -131,6 +131,13 @@ DASHBOARD_BASE_URL=https://your-domain.example.com
 
 # 招待トークンの有効期限（時間）
 INVITE_EXPIRE_HOURS=24
+
+# お題画像の保存先ディレクトリ
+ODAI_IMAGE_DIR=/data/odai
+
+# バックアップ設定（scripts/backup.sh 用）
+BACKUP_DIR=/home/shota/backups/odaibot
+BACKUP_KEEP_DAYS=7
 ```
 
 ---
@@ -437,9 +444,21 @@ sudo systemctl restart odaibot
 
 #### バックアップ
 
+`scripts/backup.sh` が DB ダンプと画像ファイルを一括バックアップします。
+
 ```bash
-mysqldump -u root -p odai_bot > backup_$(date +%Y%m%d).sql
+# 手動実行
+bash /home/shota/bots/discode_OdaiBot/scripts/backup.sh
+
+# cron 登録（毎日午前3時に自動実行）
+crontab -e
+# 以下を追加:
+# 0 3 * * * /home/shota/bots/discode_OdaiBot/scripts/backup.sh >> /home/shota/backups/odaibot/backup.log 2>&1
 ```
+
+- バックアップ先: `BACKUP_DIR`（デフォルト: `/home/shota/backups/odaibot`）
+- タイムスタンプ付きディレクトリ（例: `20260508_030000/`）に `db.sql.gz` と `images.tar.gz` を保存
+- `BACKUP_KEEP_DAYS` 日超のバックアップは自動削除
 
 #### マイグレーションの実行（スキーマ変更時）
 
@@ -476,8 +495,8 @@ sudo systemctl start odaibotapi
 | id | BIGINT PK | |
 | guild_id | BIGINT | Discord サーバー ID |
 | filename | VARCHAR(255) | ファイル名（guild 内 UNIQUE） |
-| storage_path | VARCHAR(1024) | インポート元パス（任意） |
-| data | LONGBLOB | 画像バイナリデータ |
+| storage_path | VARCHAR(1024) | ローカルファイルパス（`ODAI_IMAGE_DIR/{guild_id}/filename`）🆕 v1.3 |
+| data | LONGBLOB NULL | 旧データ互換用（新規登録は NULL）🆕 v1.3 |
 | used | TINYINT(1) | ローテーション管理フラグ（全件消化時にリセット） |
 | is_favorite | TINYINT(1) | お気に入りフラグ（0: 通常, 1: お気に入り）🆕 v1.1 |
 | created_by | BIGINT | 登録ユーザー ID（`users.id` 参照）🆕 v1.1 |
@@ -618,16 +637,16 @@ sudo systemctl start odaibotapi
 
 | メソッド | パス | 認証 | 説明 |
 |---|---|---|---|
-| POST | `/api/auth/login` | 不要 | グローバルログイン（全サーバーのギルド情報を返す） |
+| POST | `/api/auth/login` | 不要 | グローバルログイン（全サーバーのギルド情報を返す）⚡ レート制限: 10回/分 |
 | GET | `/api/auth/guilds` | Bearer | 所属サーバー一覧を取得 |
 
 #### 認証（サーバー別）`/api/guilds/{guild_id}/auth`
 
 | メソッド | パス | 認証 | 説明 |
 |---|---|---|---|
-| POST | `.../login` | 不要 | ログイン（username / display_name / ID 対応） |
+| POST | `.../login` | 不要 | ログイン（username / display_name / ID 対応）⚡ レート制限: 10回/分 |
 | POST | `.../register` | 不要 | 招待トークンでユーザー登録 |
-| POST | `.../reset-password` | 不要 | 招待トークンでパスワードリセット |
+| POST | `.../reset-password` | 不要 | 招待トークンでパスワードリセット ⚡ レート制限: 5回/分 |
 | GET | `.../invite-info` | 不要 | 招待トークンのユーザー情報取得 |
 | POST | `.../invite` | admin | 招待トークン発行 |
 | GET | `.../users` | admin | ユーザー一覧取得 |
@@ -776,7 +795,8 @@ Dashboard ログインフォーム
 |---|---|
 | 対応形式 | JPEG / PNG / WebP |
 | 最大ファイルサイズ | 8 MB |
-| 保存方式 | MySQL LONGBLOB（DB に直接保存） |
+| 保存方式 | ローカルファイル（`ODAI_IMAGE_DIR/{guild_id}/filename`）🆕 v1.3 |
+| DB 保持内容 | ファイル名 + `storage_path`（実ファイルパス）のみ。`data` カラムは NULL |
 | ファイル名の重複 | サーバー内で UNIQUE（同名は 409 エラー） |
 | ファイル名変更 | Dashboard 編集画面から変更可能 |
 
@@ -805,6 +825,9 @@ Dashboard ログインフォーム
 | `DISCORD_BOT_TOKEN` | ✅ | — | Discord Bot トークン |
 | `DASHBOARD_BASE_URL` | — | `http://localhost:3000` | Dashboard の公開 URL |
 | `INVITE_EXPIRE_HOURS` | — | `24` | 招待トークンの有効期限（時間） |
+| `ODAI_IMAGE_DIR` | — | `/data/odai` | お題画像の保存先ディレクトリ 🆕 v1.3 |
+| `BACKUP_DIR` | — | `/home/shota/backups/odaibot` | バックアップ保存先（`scripts/backup.sh` 用）🆕 v1.3 |
+| `BACKUP_KEEP_DAYS` | — | `7` | バックアップの保持日数 🆕 v1.3 |
 
 ---
 
@@ -858,6 +881,44 @@ sudo systemctl status odaibotapi odaibot
 ---
 
 ## 6. 更新履歴
+
+### v1.3（2026-05-08）
+
+#### API 変更
+
+| 対象 | 変更内容 |
+|---|---|
+| `POST /login`、`POST /api/auth/login` | IP ベースのレート制限を追加（10回/分）。超過時は 429 + 待機時間を返す |
+| `POST .../reset-password` | IP ベースのレート制限を追加（5回/分） |
+
+#### DB スキーマ変更
+
+| 対象 | 変更内容 |
+|---|---|
+| `odai.data` | `LONGBLOB NOT NULL` → `LONGBLOB NULL` に変更（新規登録は NULL、ファイル保存に移行） |
+| `odai.storage_path` | 旧「インポート元パス（任意）」から「実ファイルパス（`ODAI_IMAGE_DIR/{guild_id}/filename`）」に変更 |
+
+#### インフラ変更
+
+- お題画像の保存先を MySQL LONGBLOB からローカルファイル（`ODAI_IMAGE_DIR/{guild_id}/filename`）に移行
+- `scripts/backup.sh` を追加。DB ダンプ＋画像ディレクトリをタイムスタンプ付きで保存（cron 運用）
+- `ODAI_IMAGE_DIR`、`BACKUP_DIR`、`BACKUP_KEEP_DAYS` 環境変数を追加
+
+---
+
+### v1.2（2026-04-29）
+
+#### 機能追加
+
+- ダッシュボードの各管理ページ（お題・タグ・スケジュール・ユーザー・招待・設定）を実装
+- ユーザー管理（BAN・ロック・招待・プロフィール）
+- メモ機能、メモ検索、フィルター・ソート
+- 招待管理ページ（サイドバー独立タブ）
+- テスト投稿プレビュー
+- パスワードリセット・管理者 PW 変更
+- `odai`・`tags` テーブルに `updated_at` カラムを追加
+
+---
 
 ### v1.1（2025-05）
 
