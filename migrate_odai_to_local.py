@@ -29,6 +29,18 @@ conn = mysql.connector.connect(
 )
 cursor = conn.cursor(dictionary=True)
 
+# data カラムを nullable に変更（未実施の場合のみ）
+cursor.execute(
+    "SELECT IS_NULLABLE FROM information_schema.COLUMNS "
+    "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'odai' AND COLUMN_NAME = 'data'"
+)
+(is_nullable,) = cursor.fetchone()
+if is_nullable == 'NO':
+    print("data カラムを nullable に変更中...")
+    cursor.execute("ALTER TABLE odai MODIFY COLUMN data LONGBLOB NULL")
+    conn.commit()
+    print("完了")
+
 cursor.execute("SELECT id, guild_id, filename, storage_path, data FROM odai WHERE deleted_at IS NULL")
 rows = cursor.fetchall()
 
