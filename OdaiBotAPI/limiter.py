@@ -11,9 +11,11 @@ def _check(request: Request, limit: int, window: int) -> None:
     now = time.time()
     _buckets[ip] = [t for t in _buckets[ip] if now - t < window]
     if len(_buckets[ip]) >= limit:
+        wait_sec = int(window - (now - _buckets[ip][0])) + 1
+        wait_msg = f"{(wait_sec + 59) // 60}分" if wait_sec >= 60 else f"{wait_sec}秒"
         raise HTTPException(
             status_code=429,
-            detail="リクエスト数が上限を超えました。しばらく経ってから再試行してください。",
+            detail=f"リクエスト数が上限を超えました。{wait_msg}後に再試行してください。",
         )
     _buckets[ip].append(now)
 
