@@ -11,10 +11,10 @@ _LOCKOUT_STEPS = [
     (5,  1),         # 5回以上  → 1分
 ]
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Response
 from fastapi.security import HTTPAuthorizationCredentials
 
-from ..limiter import limiter
+from ..limiter import login_rate_limit, reset_rate_limit
 from ..deps import (
     db,
     get_current_user,
@@ -49,8 +49,7 @@ def _validate_password(password: str) -> None:
 
 
 @router.post("/login", response_model=TokenResponse)
-@limiter.limit("10/minute")
-def login(request: Request, guild_id: int, payload: LoginRequest):
+def login(guild_id: int, payload: LoginRequest, _: None = Depends(login_rate_limit)):
     try:
         login_id = int(payload.username)
     except ValueError:
@@ -187,8 +186,7 @@ def register_with_invite(guild_id: int, payload: InviteRegisterRequest):
 
 
 @router.post("/reset-password")
-@limiter.limit("5/minute")
-def reset_password(request: Request, guild_id: int, payload: ResetPasswordRequest):
+def reset_password(guild_id: int, payload: ResetPasswordRequest, _: None = Depends(reset_rate_limit)):
     invite = db.query_one(
         "SELECT * FROM user_invites WHERE guild_id = %s AND invite_token = %s AND used = 0 AND expires_at > NOW()",
         (guild_id, payload.invite_token),
