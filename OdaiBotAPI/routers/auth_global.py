@@ -2,17 +2,19 @@ from __future__ import annotations
 
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.security import HTTPAuthorizationCredentials
 
 from ..deps import db, security, verify_password, make_token
+from ..limiter import limiter
 from ..schemas import LoginRequest, GlobalLoginResponse
 
 router = APIRouter(prefix="/api/auth", tags=["auth-global"])
 
 
 @router.post("/login", response_model=GlobalLoginResponse)
-def global_login(payload: LoginRequest):
+@limiter.limit("10/minute")
+def global_login(request: Request, payload: LoginRequest):
     try:
         login_id = int(payload.username)
     except ValueError:

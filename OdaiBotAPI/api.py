@@ -11,8 +11,12 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from slowapi.errors import RateLimitExceeded
+
+from .limiter import limiter
 
 ROOT = Path(__file__).resolve().parent
 sys.path.append(str(ROOT.parent / "OdaiBot"))
@@ -21,6 +25,18 @@ from .deps import db
 from .routers import auth_router, auth_global_router, odai_router, schedules_router, settings_router, summary_router, tags_router, test_post_router
 
 app = FastAPI(title="OdaiBotAPI")
+
+app.state.limiter = limiter
+
+
+async def _rate_limit_handler(request: Request, exc: RateLimitExceeded) -> JSONResponse:
+    return JSONResponse(
+        status_code=429,
+        content={"detail": "リクエスト数が上限を超えました。しばらく経ってから再試行してください。"},
+    )
+
+
+app.add_exception_handler(RateLimitExceeded, _rate_limit_handler)
 
 app.add_middleware(
     CORSMiddleware,
