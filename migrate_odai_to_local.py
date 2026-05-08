@@ -30,14 +30,16 @@ conn = mysql.connector.connect(
 cursor = conn.cursor(dictionary=True)
 
 # data カラムを nullable に変更（未実施の場合のみ）
-cursor.execute(
+_chk = conn.cursor()
+_chk.execute(
     "SELECT IS_NULLABLE FROM information_schema.COLUMNS "
     "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'odai' AND COLUMN_NAME = 'data'"
 )
-(is_nullable,) = cursor.fetchone()
+(is_nullable,) = _chk.fetchone()
+_chk.close()
 if is_nullable == 'NO':
     print("data カラムを nullable に変更中...")
-    cursor.execute("ALTER TABLE odai MODIFY COLUMN data LONGBLOB NULL")
+    conn.cursor().execute("ALTER TABLE odai MODIFY COLUMN data LONGBLOB NULL")
     conn.commit()
     print("完了")
 
