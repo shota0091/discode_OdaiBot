@@ -1,7 +1,11 @@
 from __future__ import annotations
+import os
+from pathlib import Path
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile
+
+_IMAGE_DIR = Path(os.getenv("ODAI_IMAGE_DIR", "/data/odai"))
 
 from ..deps import db, get_current_user, normalize_tags, odai_repo, require_admin
 from ..schemas import OdaiUpdateRequest
@@ -244,11 +248,21 @@ def update_odai(guild_id: int, odai_id: int, payload: OdaiUpdateRequest, current
 @router.get("/{odai_id}/image", dependencies=[Depends(get_current_user)])
 def get_odai_image(guild_id: int, odai_id: int):
     row = db.query_one(
-        "SELECT data, filename FROM odai WHERE id = %s AND guild_id = %s AND deleted_at IS NULL",
+        "SELECT filename, storage_path, data FROM odai WHERE id = %s AND guild_id = %s AND deleted_at IS NULL",
         (odai_id, guild_id),
     )
     if not row:
         raise HTTPException(status_code=404, detail="お題が見つかりません")
+
+    content: bytes | None = None
+    if row.get("storage_path"):
+        p = Path(row["storage_path"])
+        if p.exists():
+            content = p.read_bytes()
+    if content is None and row.get("data"):
+        content = bytes(row["data"])
+    if content is None:
+        raise HTTPException(status_code=404, detail="画像データが見つかりません")
 
     filename = (row["filename"] or "").lower()
     if filename.endswith(".png"):
@@ -258,7 +272,7 @@ def get_odai_image(guild_id: int, odai_id: int):
     else:
         media_type = "image/jpeg"
 
-    return Response(content=bytes(row["data"]), media_type=media_type)
+    return Response(content=content, media_type=media_type)
 
 
 @router.delete("/{odai_id}", dependencies=[Depends(require_admin)], status_code=204)

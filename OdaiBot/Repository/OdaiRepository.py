@@ -1,4 +1,10 @@
+import os
+from pathlib import Path
+
 from Repository.MySQLDatabase import MySQLDatabase
+
+_IMAGE_DIR = Path(os.getenv("ODAI_IMAGE_DIR", "/data/odai"))
+
 
 class OdaiRepository:
     def __init__(self, db: MySQLDatabase):
@@ -71,6 +77,9 @@ class OdaiRepository:
         )
         return [row["name"] for row in rows]
 
+    def _image_path(self, guild_id: int, filename: str) -> Path:
+        return _IMAGE_DIR / str(guild_id) / filename
+
     def file_exists(self, guild_id: int, filename: str) -> bool:
         return self.db.query_one(
             "SELECT 1 FROM odai WHERE guild_id = %s AND filename = %s AND deleted_at IS NULL",
@@ -81,9 +90,13 @@ class OdaiRepository:
         if self.file_exists(guild_id, filename):
             return False, f"❌ 同名ファイルが既に存在します：{filename}"
 
+        img_path = self._image_path(guild_id, filename)
+        img_path.parent.mkdir(parents=True, exist_ok=True)
+        img_path.write_bytes(content)
+
         cursor = self.db.execute(
             "INSERT INTO odai (guild_id, filename, storage_path, data, created_by) VALUES (%s, %s, %s, %s, %s)",
-            (guild_id, filename, storage_path, content, created_by),
+            (guild_id, filename, str(img_path), None, created_by),
             commit=True,
         )
         odai_id = cursor.lastrowid
@@ -101,10 +114,17 @@ class OdaiRepository:
         return True, f"お題を登録しました：{filename}"
 
     def get_odai_data(self, odai_id: int):
-        return self.db.query_one(
+        row = self.db.query_one(
             "SELECT id, filename, storage_path, data FROM odai WHERE id = %s AND deleted_at IS NULL",
             (odai_id,),
         )
+        if not row:
+            return None
+        if row.get("storage_path"):
+            p = Path(row["storage_path"])
+            if p.exists():
+                row["data"] = p.read_bytes()
+        return row
 
     def remove_odai(self, guild_id: int, filename: str) -> str:
         row = self.db.query_one(

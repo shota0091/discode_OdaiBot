@@ -406,6 +406,15 @@ class MySQLDatabase:
             (col_count,) = cursor.fetchone()
             if col_count == 0:
                 cursor.execute(f"ALTER TABLE odai ADD COLUMN {col} {definition}")
+        # data カラムを nullable に（ローカルファイル管理化のため）
+        cursor.execute(
+            "SELECT IS_NULLABLE FROM information_schema.COLUMNS "
+            "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'odai' AND COLUMN_NAME = 'data'"
+        )
+        (is_nullable,) = cursor.fetchone()
+        if is_nullable == 'NO':
+            cursor.execute("ALTER TABLE odai MODIFY COLUMN data LONGBLOB NULL")
+
         # login_attempts / locked_until / login_locked マイグレーション
         for col, definition in [
             ("login_attempts", "INT NOT NULL DEFAULT 0"),
