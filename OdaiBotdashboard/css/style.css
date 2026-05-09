@@ -670,8 +670,12 @@ code { background: var(--bg); padding: 2px 6px; border-radius: 4px; font-family:
 .capacity-bar__fill--normal { background: var(--primary); }
 .capacity-bar__fill--warning { background: #f0ad00; }
 .capacity-bar__fill--danger { background: #dc3545; }
+.capacity-bar-wrap { display: flex; align-items: center; gap: 8px; }
+.capacity-bar-wrap .capacity-bar { flex: 1; }
+.capacity-bar__percent { font-size: 13px; font-weight: 600; color: var(--text-muted); min-width: 36px; text-align: right; }
 .plan-expand-hint { margin-top: 8px; font-size: 13px; }
 .plan-expand-hint code { background: var(--bg); padding: 1px 5px; border-radius: 3px; font-family: monospace; }
+.expand-action { margin-top: 12px; }
 
 /* Extra small (≤ 400px) */
 @media (max-width: 400px) {

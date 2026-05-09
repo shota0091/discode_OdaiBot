@@ -158,6 +158,14 @@ const API = {
     });
   },
 
+  async expandCapacity(units, successUrl, cancelUrl) {
+    return this._fetch(`/api/guilds/${this._guildId()}/plan/expand`, {
+      method: 'POST',
+      headers: this._headers(),
+      body: JSON.stringify({ units, success_url: successUrl, cancel_url: cancelUrl }),
+    });
+  },
+
   // Tags
   async getTags(q = '') {
     const qs = q ? `?q=${encodeURIComponent(q)}` : '';

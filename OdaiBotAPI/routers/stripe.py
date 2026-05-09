@@ -10,7 +10,7 @@ import stripe
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from pydantic import BaseModel
 
-from ..deps import db
+from ..deps import db, require_admin
 
 router = APIRouter(tags=["stripe"])
 
@@ -212,6 +212,57 @@ def create_expand_checkout(payload: ExpandRequest):
             "quantity": payload.units,
         }],
         metadata={"guild_id": str(payload.guild_id), "type": "expand", "units": str(payload.units)},
+        success_url=payload.success_url,
+        cancel_url=payload.cancel_url,
+    )
+    return {"url": session.url}
+
+
+class DashboardExpandRequest(BaseModel):
+    units: int = 1
+    success_url: str
+    cancel_url: str
+
+
+@router.post("/api/guilds/{guild_id}/plan/expand")
+def dashboard_expand_checkout(
+    guild_id: int,
+    payload: DashboardExpandRequest,
+    _user: dict = Depends(require_admin),
+):
+    gp = db.query_one(
+        "SELECT gp.custom_odai_capacity, p.name AS plan_name, "
+        "p.can_expand_capacity, p.custom_odai_max "
+        "FROM guild_plans gp JOIN plans p ON gp.plan_id = p.id WHERE gp.guild_id = %s",
+        (guild_id,),
+    )
+    if not gp:
+        raise HTTPException(status_code=404, detail="プラン情報が見つかりません")
+    if not gp["can_expand_capacity"]:
+        raise HTTPException(status_code=403, detail="このプランは容量拡張できません")
+
+    plan_name = gp["plan_name"]
+    unit_amount = _EXPAND_UNIT_AMOUNT.get(plan_name)
+    if unit_amount is None:
+        raise HTTPException(status_code=400, detail="拡張価格が未設定です")
+
+    max_cap = gp.get("custom_odai_max")
+    if max_cap is not None:
+        new_cap = gp["custom_odai_capacity"] + payload.units * _EXPAND_UNIT_ODAI
+        if new_cap > max_cap:
+            raise HTTPException(status_code=400, detail=f"上限を超えます（最大 {max_cap} 件）")
+
+    session = stripe.checkout.Session.create(
+        mode="payment",
+        line_items=[{
+            "price_data": {
+                "currency": "jpy",
+                "unit_amount": unit_amount,
+                "product_data": {"name": f"お題容量拡張 +{_EXPAND_UNIT_ODAI}件 × {payload.units}"},
+            },
+            "quantity": payload.units,
+        }],
+        metadata={"guild_id": str(guild_id), "type": "expand", "units": str(payload.units)},
         success_url=payload.success_url,
         cancel_url=payload.cancel_url,
     )

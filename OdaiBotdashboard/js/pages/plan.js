@@ -121,15 +121,23 @@ const PlanPage = {
                 <span class="capacity-info__total">/ ${capDisplay} 件</span>
               </div>
               ${capTotal !== null ? `
-              <div class="capacity-bar">
-                <div class="capacity-bar__fill capacity-bar__fill--${capBarClass}" style="width: ${capPercent}%"></div>
+              <div class="capacity-bar-wrap">
+                <div class="capacity-bar">
+                  <div class="capacity-bar__fill capacity-bar__fill--${capBarClass}" style="width: ${capPercent}%"></div>
+                </div>
+                <span class="capacity-bar__percent">${capPercent}%</span>
               </div>
               <p class="capacity-info__sub">${capTotal - odaiCount} 件追加可能</p>
               ` : `
               <p class="capacity-info__sub">容量制限なし</p>
               `}
             </div>
-            ${p.can_expand_capacity ? `<p class="text-muted plan-expand-hint">容量拡張は Discord コマンド <code>/expand</code> から行えます。</p>` : ''}
+            ${p.can_expand_capacity && isAdmin ? `
+            <div class="expand-action">
+              <button class="btn btn--primary btn--sm" id="expand-btn">容量を拡張する</button>
+              <p class="text-muted" style="margin-top:6px;font-size:12px">+100件単位で拡張できます</p>
+            </div>
+            ` : ''}
           `}
         </div>
         ` : ''}
@@ -163,6 +171,7 @@ const PlanPage = {
 
       if (isAdmin && isPro) this._bindDefaultOdaiForm();
       if (isAdmin && isFree) this._bindScheduleForm(schedule);
+      if (isAdmin && p.can_expand_capacity) this._bindExpandButton();
     } catch (err) {
       document.getElementById('plan-root').innerHTML = `<p class="text-error">${escapeHtml(err.message)}</p>`;
     }
@@ -187,6 +196,58 @@ const PlanPage = {
       } finally {
         btn.disabled = false;
       }
+    });
+  },
+
+  _bindExpandButton() {
+    const btn = document.getElementById('expand-btn');
+    if (!btn) return;
+    btn.addEventListener('click', () => {
+      const modal = document.createElement('div');
+      modal.className = 'modal-overlay';
+      modal.innerHTML = `
+        <div class="modal">
+          <div class="modal__header">
+            <span class="modal__title">容量拡張</span>
+          </div>
+          <div class="modal__body">
+            <p class="text-muted" style="margin-bottom:12px">1単位 = +100件。拡張後は Stripe の決済ページに移動します。</p>
+            <div class="form__group">
+              <label class="form__label">拡張単位数</label>
+              <input type="number" id="expand-units" class="form__input" value="1" min="1" max="10" style="width:80px">
+            </div>
+            <div id="expand-error" class="form__error" hidden></div>
+          </div>
+          <div class="modal__footer">
+            <button class="btn btn--secondary" id="expand-cancel-btn">キャンセル</button>
+            <button class="btn btn--primary" id="expand-confirm-btn">決済へ進む</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(modal);
+
+      document.getElementById('expand-cancel-btn').addEventListener('click', () => modal.remove());
+      document.getElementById('expand-confirm-btn').addEventListener('click', async () => {
+        const units = parseInt(document.getElementById('expand-units').value, 10);
+        const errorEl = document.getElementById('expand-error');
+        errorEl.hidden = true;
+        if (!units || units < 1) {
+          errorEl.textContent = '1以上の数値を入力してください';
+          errorEl.hidden = false;
+          return;
+        }
+        const confirmBtn = document.getElementById('expand-confirm-btn');
+        confirmBtn.disabled = true;
+        try {
+          const origin = location.origin + location.pathname;
+          const res = await API.expandCapacity(units, `${origin}#plan`, `${origin}#plan`);
+          location.href = res.url;
+        } catch (err) {
+          errorEl.textContent = err.message;
+          errorEl.hidden = false;
+          confirmBtn.disabled = false;
+        }
+      });
     });
   },
 
