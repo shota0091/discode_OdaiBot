@@ -18,6 +18,16 @@ def dashboard_summary(guild_id: int):
     channel_count = (
         db.query_one("SELECT COUNT(DISTINCT channel_id) AS cnt FROM schedules WHERE guild_id = %s", (guild_id,))["cnt"]
     )
+    last_post = db.query_one(
+        "SELECT ph.odai_id, o.filename, ph.channel_id, ph.result, ph.posted_at "
+        "FROM post_history ph "
+        "JOIN odai o ON ph.odai_id = o.id "
+        "WHERE ph.guild_id = %s "
+        "ORDER BY ph.posted_at DESC LIMIT 1",
+        (guild_id,),
+    )
+    if last_post and last_post.get("channel_id") is not None:
+        last_post["channel_id"] = str(last_post["channel_id"])
     recent_posts = db.query(
         "SELECT ph.odai_id, o.filename, ph.channel_id, c.name AS channel_name, ph.result, ph.posted_at "
         "FROM post_history ph "
@@ -34,6 +44,7 @@ def dashboard_summary(guild_id: int):
             "odai_count": odai_count,
             "active_schedule_count": active_schedule_count,
             "channel_count": channel_count,
+            "last_post": last_post,
             "recent_posts": recent_posts,
         }
     }

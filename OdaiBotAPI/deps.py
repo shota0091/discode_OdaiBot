@@ -84,3 +84,53 @@ def require_admin(guild_id: int, user: dict = Depends(get_current_user)) -> dict
 
 def has_guild_users(guild_id: int) -> bool:
     return db.query_one("SELECT 1 FROM user_guilds WHERE guild_id = %s", (guild_id,)) is not None
+
+
+def get_guild_plan(guild_id: int) -> dict:
+    """guild_plans + plans を JOIN して返す。レコードなしは free プラン扱い。"""
+    gp = db.query_one(
+        "SELECT p.name AS plan_name, p.has_dashboard, p.has_discord_op, p.can_expand_capacity, "
+        "p.custom_odai_max, gp.custom_odai_capacity, gp.status "
+        "FROM guild_plans gp JOIN plans p ON gp.plan_id = p.id "
+        "WHERE gp.guild_id = %s",
+        (guild_id,),
+    )
+    if gp:
+        return gp
+    free = db.query_one(
+        "SELECT name AS plan_name, has_dashboard, has_discord_op, can_expand_capacity, custom_odai_max "
+        "FROM plans WHERE name = 'free'",
+        (),
+    )
+    return {**(free or {}), "custom_odai_capacity": 0, "status": "active"}
+
+
+def require_dashboard_plan(guild_id: int) -> None:
+    """has_dashboard = 0 のプランはログイン不可（Light プラン以上が必要）。"""
+    plan = get_guild_plan(guild_id)
+    if not plan.get("has_dashboard"):
+        raise HTTPException(status_code=403, detail="このプランでは Dashboard を利用できません（Light プラン以上が必要です）")
+
+
+def require_pro_plan(guild_id: int, _: dict = Depends(get_current_user)) -> None:
+    """Pro / Enterprise プラン以外はアクセス不可。認証チェックを先行させることで未認証時は401を返す。"""
+    plan = get_guild_plan(guild_id)
+    if plan.get("plan_name") not in ("pro", "enterprise"):
+        raise HTTPException(status_code=403, detail="この機能は Pro プラン以上が必要です")
+
+
+def check_odai_capacity(guild_id: int, adding: int = 1) -> None:
+    """独自お題の登録上限をチェック。上限超えは 403。cap=NULL は無制限。"""
+    plan = get_guild_plan(guild_id)
+    cap = plan.get("custom_odai_capacity")
+    if cap is None:
+        return  # NULL = 無制限
+    if cap == 0:
+        raise HTTPException(status_code=403, detail="このプランでは独自お題を登録できません（Light プラン以上が必要です）")
+    current_row = db.query_one(
+        "SELECT COUNT(*) AS cnt FROM odai WHERE guild_id = %s AND deleted_at IS NULL",
+        (guild_id,),
+    )
+    current = current_row["cnt"] if current_row else 0
+    if current + adding > cap:
+        raise HTTPException(status_code=403, detail=f"お題の登録上限（{cap} 件）に達しています。容量を拡張してください")

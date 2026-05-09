@@ -14,16 +14,29 @@ from .conftest import ADMIN, BASE, GUILD_ID, make_cursor
 # ─────────────────────────────────────────────────────────────
 # POST /auth/login
 # ─────────────────────────────────────────────────────────────
+_LIGHT_PLAN = {
+    "plan_name": "light", "has_dashboard": 1, "has_discord_op": 1,
+    "can_expand_capacity": 1, "custom_odai_max": 1000,
+    "custom_odai_capacity": 100, "status": "active",
+}
+
+
 class TestLogin:
     _url = f"{BASE}/auth/login"
 
     def test_success(self, anon_client):
         password = "correct_pass"
-        deps.db.query_one.return_value = {
-            "id": 1, "username": "admin_user",
-            "password_hash": hash_password(password),
-            "role": "admin",
-        }
+        # require_dashboard_plan が先に db.query_one を1回消費する
+        deps.db.query_one.side_effect = [
+            _LIGHT_PLAN,  # require_dashboard_plan → plan check
+            {
+                "id": 1, "username": "admin_user", "display_name": None,
+                "password_hash": hash_password(password),
+                "login_attempts": 0, "locked_until": None, "login_locked": 0,
+                "role": "admin",
+            },  # user lookup
+            None,  # ban check
+        ]
         deps.db.execute.return_value = make_cursor()
 
         res = anon_client.post(self._url, json={"username": "admin_user", "password": password})
@@ -35,17 +48,26 @@ class TestLogin:
         assert body["role"] == "admin"
 
     def test_wrong_password_returns_401(self, anon_client):
-        deps.db.query_one.return_value = {
-            "id": 1, "username": "admin_user",
-            "password_hash": hash_password("real_password"),
-            "role": "admin",
-        }
+        deps.db.query_one.side_effect = [
+            _LIGHT_PLAN,  # require_dashboard_plan
+            {
+                "id": 1, "username": "admin_user", "display_name": None,
+                "password_hash": hash_password("real_password"),
+                "login_attempts": 0, "locked_until": None, "login_locked": 0,
+                "role": "admin",
+            },  # user lookup
+            None,  # ban check
+        ]
+        deps.db.execute.return_value = make_cursor()
 
         res = anon_client.post(self._url, json={"username": "admin_user", "password": "wrong"})
         assert res.status_code == 401
 
     def test_user_not_found_returns_401(self, anon_client):
-        deps.db.query_one.return_value = None
+        deps.db.query_one.side_effect = [
+            _LIGHT_PLAN,  # require_dashboard_plan
+            None,          # user not found
+        ]
 
         res = anon_client.post(self._url, json={"username": "nobody", "password": "pass"})
         assert res.status_code == 401
@@ -63,9 +85,15 @@ class TestRegister:
             "username": "new_user", "role": "user",
             "invite_token": "valid_token",
         }
-        # 1回目: invite 取得 / 2回目: 重複チェック（None=重複なし）
-        deps.db.query_one.side_effect = [invite, None]
-        deps.db.execute.return_value = make_cursor()
+        # query_one の呼び出し順: invite → ban_check → dup_in_guild → global_user → api_token
+        deps.db.query_one.side_effect = [
+            invite,                        # invite lookup
+            None,                          # ban check
+            None,                          # duplicate in guild check
+            None,                          # global user check (new user)
+            {"api_token": "testtoken123"}, # get api_token after INSERT
+        ]
+        deps.db.execute.return_value = make_cursor(10)
 
         res = anon_client.post(self._url, json={
             "invite_token": "valid_token", "password": "password123"
@@ -75,6 +103,13 @@ class TestRegister:
         assert "access_token" in res.json()
 
     def test_short_password_returns_400(self, anon_client):
+        invite = {
+            "id": 10, "guild_id": GUILD_ID,
+            "username": "new_user", "role": "user", "invite_token": "any_token",
+        }
+        # invite → ban_check → dup_in_guild → global_user(None=新規) → _validate_password で400
+        deps.db.query_one.side_effect = [invite, None, None, None]
+
         res = anon_client.post(self._url, json={
             "invite_token": "any_token", "password": "short"
         })
@@ -90,8 +125,9 @@ class TestRegister:
 
     def test_duplicate_username_returns_409(self, anon_client):
         invite = {"id": 10, "guild_id": GUILD_ID, "username": "existing", "role": "user"}
-        existing_user = {"id": 5}
-        deps.db.query_one.side_effect = [invite, existing_user]
+        existing_in_guild = {"id": 5}
+        # invite → ban_check(None) → dup_in_guild(existing_in_guild) → 409
+        deps.db.query_one.side_effect = [invite, None, existing_in_guild]
 
         res = anon_client.post(self._url, json={
             "invite_token": "valid_token", "password": "password123"
@@ -178,9 +214,11 @@ class TestCreateUser:
         assert res.status_code == 400
 
     def test_duplicate_username_returns_409(self, anon_client):
+        # has_guild_users → global user exists → guild membership check → 409
         deps.db.query_one.side_effect = [
-            None,      # has_guild_users → False
-            {"id": 5}, # duplicate check → exists
+            None,      # has_guild_users → False (no guild users → skip auth)
+            {"id": 5}, # existing global user found
+            {"id": 1}, # guild membership check → truthy → 409
         ]
         res = anon_client.post(self._url, json={
             "username": "existing", "password": "password123", "role": "user"

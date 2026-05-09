@@ -135,6 +135,29 @@ const API = {
     return this._fetch(`/api/guilds/${this._guildId()}/dashboard-summary`, { headers: this._headers() });
   },
 
+  // Plan
+  async getPlan() {
+    return this._fetch(`/api/guilds/${this._guildId()}/plan`);
+  },
+
+  // Free plan schedule
+  async getPlanSchedule() {
+    return this._fetch(`/api/guilds/${this._guildId()}/plan-schedule`, { headers: this._headers() });
+  },
+  async setPlanSchedule(channelId, time) {
+    return this._fetch(`/api/guilds/${this._guildId()}/plan-schedule`, {
+      method: 'POST',
+      headers: this._headers(),
+      body: JSON.stringify({ channel_id: channelId, time }),
+    });
+  },
+  async deletePlanSchedule(scheduleId) {
+    return this._fetch(`/api/guilds/${this._guildId()}/plan-schedule/${scheduleId}`, {
+      method: 'DELETE',
+      headers: this._headers(),
+    });
+  },
+
   // Tags
   async getTags(q = '') {
     const qs = q ? `?q=${encodeURIComponent(q)}` : '';

@@ -10,11 +10,18 @@ class NotifyServiceImpl(NotifyServiceInterface):
         self.repo = odaiRepository
         self.db = db
 
+    def _use_default_odai(self, guild_id: int) -> bool:
+        row = self.db.query_one(
+            "SELECT use_default_odai FROM guild_settings WHERE guild_id = %s", (guild_id,)
+        )
+        return bool(row.get("use_default_odai", 1)) if row else False
+
     def select_candidate(self, guild_id: int, channel_id: int | None = None, schedule: dict | None = None):
-        candidates = self.repo.load_for_channel(guild_id, channel_id)
+        include_defaults = self._use_default_odai(guild_id)
+        candidates = self.repo.load_for_channel(guild_id, channel_id, include_defaults=include_defaults)
         if not candidates and channel_id is not None:
             self.repo.reset_channel_usage(guild_id, channel_id)
-            candidates = self.repo.load_for_channel(guild_id, channel_id)
+            candidates = self.repo.load_for_channel(guild_id, channel_id, include_defaults=include_defaults)
 
         filtered = [
             odai for odai in candidates
@@ -49,7 +56,8 @@ class NotifyServiceImpl(NotifyServiceInterface):
         if not candidate:
             return False, "⚠️ 投稿候補のお題が見つかりません"
 
-        odai_data = self.repo.get_odai_data(candidate["id"])
+        is_default = candidate.get("guild_id") is None
+        odai_data = self.repo.get_odai_data(candidate["id"], is_default=is_default)
         if not odai_data:
             return False, "⚠️ お題データが見つかりませんでした"
 

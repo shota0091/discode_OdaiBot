@@ -1,0 +1,315 @@
+============================= test session starts =============================
+platform win32 -- Python 3.13.9, pytest-9.0.3, pluggy-1.6.0 -- C:\Users\s_horiuchi\Documents\git\discode_OdaiBot\discode_OdaiBot\.venv\Scripts\python.exe
+cachedir: .pytest_cache
+rootdir: C:\Users\s_horiuchi\Documents\git\discode_OdaiBot\discode_OdaiBot
+configfile: pytest.ini
+plugins: anyio-4.9.0
+collecting ... collected 236 items
+
+OdaiBotAPI/tests/test_auth.py::TestLogin::test_success PASSED            [  0%]
+OdaiBotAPI/tests/test_auth.py::TestLogin::test_wrong_password_returns_401 PASSED [  0%]
+OdaiBotAPI/tests/test_auth.py::TestLogin::test_user_not_found_returns_401 PASSED [  1%]
+OdaiBotAPI/tests/test_auth.py::TestRegister::test_success PASSED         [  1%]
+OdaiBotAPI/tests/test_auth.py::TestRegister::test_short_password_returns_400 PASSED [  2%]
+OdaiBotAPI/tests/test_auth.py::TestRegister::test_invalid_token_returns_404 PASSED [  2%]
+OdaiBotAPI/tests/test_auth.py::TestRegister::test_duplicate_username_returns_409 PASSED [  2%]
+OdaiBotAPI/tests/test_auth.py::TestCreateInvite::test_success PASSED     [  3%]
+OdaiBotAPI/tests/test_auth.py::TestCreateInvite::test_invalid_role_returns_400 PASSED [  3%]
+OdaiBotAPI/tests/test_auth.py::TestCreateInvite::test_duplicate_username_returns_409 PASSED [  4%]
+OdaiBotAPI/tests/test_auth.py::TestListUsers::test_success PASSED        [  4%]
+OdaiBotAPI/tests/test_auth.py::TestCreateUser::test_success_first_user PASSED [  5%]
+OdaiBotAPI/tests/test_auth.py::TestCreateUser::test_short_password_returns_400 PASSED [  5%]
+OdaiBotAPI/tests/test_auth.py::TestCreateUser::test_duplicate_username_returns_409 PASSED [  5%]
+OdaiBotAPI/tests/test_auth.py::TestUpdateUser::test_success PASSED       [  6%]
+OdaiBotAPI/tests/test_auth.py::TestUpdateUser::test_not_found_returns_404 PASSED [  6%]
+OdaiBotAPI/tests/test_auth.py::TestUpdateUser::test_no_update_fields_returns_400 PASSED [  7%]
+OdaiBotAPI/tests/test_auth.py::TestDeleteUser::test_success PASSED       [  7%]
+OdaiBotAPI/tests/test_auth.py::TestDeleteUser::test_self_delete_returns_400 PASSED [  8%]
+OdaiBotAPI/tests/test_auth.py::TestDeleteUser::test_not_found_returns_404 PASSED [  8%]
+OdaiBotAPI/tests/test_auth_global.py::TestGlobalLogin::test_success PASSED [  8%]
+OdaiBotAPI/tests/test_auth_global.py::TestGlobalLogin::test_wrong_password_returns_401 PASSED [  9%]
+OdaiBotAPI/tests/test_auth_global.py::TestGlobalLogin::test_user_not_found_returns_401 PASSED [  9%]
+OdaiBotAPI/tests/test_auth_global.py::TestGlobalLogin::test_no_guilds_returns_403 PASSED [ 10%]
+OdaiBotAPI/tests/test_auth_global.py::TestGlobalLogin::test_display_name_in_response PASSED [ 10%]
+OdaiBotAPI/tests/test_auth_global.py::TestListGuilds::test_success PASSED [ 11%]
+OdaiBotAPI/tests/test_auth_global.py::TestListGuilds::test_no_token_returns_401 PASSED [ 11%]
+OdaiBotAPI/tests/test_auth_global.py::TestListGuilds::test_invalid_token_returns_401 PASSED [ 11%]
+OdaiBotAPI/tests/test_auth_global.py::TestListGuilds::test_multiple_guilds PASSED [ 12%]
+OdaiBotAPI/tests/test_auth_users.py::TestResetPassword::test_success PASSED [ 12%]
+OdaiBotAPI/tests/test_auth_users.py::TestResetPassword::test_invalid_token_returns_404 PASSED [ 13%]
+OdaiBotAPI/tests/test_auth_users.py::TestResetPassword::test_user_not_found_returns_404 PASSED [ 13%]
+OdaiBotAPI/tests/test_auth_users.py::TestResetPassword::test_short_password_returns_400 PASSED [ 13%]
+OdaiBotAPI/tests/test_auth_users.py::TestGetInviteInfo::test_success PASSED [ 14%]
+OdaiBotAPI/tests/test_auth_users.py::TestGetInviteInfo::test_invalid_token_returns_404 PASSED [ 14%]
+OdaiBotAPI/tests/test_auth_users.py::TestListBans::test_success PASSED   [ 15%]
+OdaiBotAPI/tests/test_auth_users.py::TestListBans::test_empty_list PASSED [ 15%]
+OdaiBotAPI/tests/test_auth_users.py::TestListBans::test_unauthenticated_returns_401 PASSED [ 16%]
+OdaiBotAPI/tests/test_auth_users.py::TestListBans::test_non_admin_returns_403 PASSED [ 16%]
+OdaiBotAPI/tests/test_auth_users.py::TestRemoveBan::test_success PASSED  [ 16%]
+OdaiBotAPI/tests/test_auth_users.py::TestRemoveBan::test_not_found_returns_404 PASSED [ 17%]
+OdaiBotAPI/tests/test_auth_users.py::TestRemoveBan::test_non_admin_returns_403 PASSED [ 17%]
+OdaiBotAPI/tests/test_auth_users.py::TestListInvites::test_success PASSED [ 18%]
+OdaiBotAPI/tests/test_auth_users.py::TestListInvites::test_empty_list PASSED [ 18%]
+OdaiBotAPI/tests/test_auth_users.py::TestListInvites::test_non_admin_returns_403 PASSED [ 19%]
+OdaiBotAPI/tests/test_auth_users.py::TestRevokeInvite::test_success PASSED [ 19%]
+OdaiBotAPI/tests/test_auth_users.py::TestRevokeInvite::test_not_found_returns_404 PASSED [ 19%]
+OdaiBotAPI/tests/test_auth_users.py::TestRevokeInvite::test_non_admin_returns_403 PASSED [ 20%]
+OdaiBotAPI/tests/test_auth_users.py::TestUnlockUser::test_success PASSED [ 20%]
+OdaiBotAPI/tests/test_auth_users.py::TestUnlockUser::test_not_found_returns_404 PASSED [ 21%]
+OdaiBotAPI/tests/test_auth_users.py::TestUnlockUser::test_non_admin_returns_403 PASSED [ 21%]
+OdaiBotAPI/tests/test_auth_users.py::TestBanUser::test_success PASSED    [ 22%]
+OdaiBotAPI/tests/test_auth_users.py::TestBanUser::test_self_ban_returns_400 PASSED [ 22%]
+OdaiBotAPI/tests/test_auth_users.py::TestBanUser::test_user_not_found_returns_404 PASSED [ 22%]
+OdaiBotAPI/tests/test_auth_users.py::TestBanUser::test_non_admin_returns_403 PASSED [ 23%]
+OdaiBotAPI/tests/test_auth_users.py::TestUnbanUser::test_success PASSED  [ 23%]
+OdaiBotAPI/tests/test_auth_users.py::TestUnbanUser::test_user_not_found_returns_404 PASSED [ 24%]
+OdaiBotAPI/tests/test_auth_users.py::TestUnbanUser::test_non_admin_returns_403 PASSED [ 24%]
+OdaiBotAPI/tests/test_auth_users.py::TestGetUserProfile::test_admin_can_view_any_profile PASSED [ 25%]
+OdaiBotAPI/tests/test_auth_users.py::TestGetUserProfile::test_user_can_view_own_profile PASSED [ 25%]
+OdaiBotAPI/tests/test_auth_users.py::TestGetUserProfile::test_user_cannot_view_others_profile PASSED [ 25%]
+OdaiBotAPI/tests/test_auth_users.py::TestGetUserProfile::test_not_found_returns_404 PASSED [ 26%]
+OdaiBotAPI/tests/test_auth_users.py::TestGetUserProfile::test_profile_includes_odai_and_tags PASSED [ 26%]
+OdaiBotAPI/tests/test_auth_users.py::TestListUsersNonAdmin::test_non_admin_sees_only_own_data PASSED [ 27%]
+OdaiBotAPI/tests/test_auth_users.py::TestUpdateUserExtra::test_non_admin_cannot_update_other_user PASSED [ 27%]
+OdaiBotAPI/tests/test_auth_users.py::TestUpdateUserExtra::test_wrong_current_password_returns_401 PASSED [ 27%]
+OdaiBotAPI/tests/test_auth_users.py::TestUpdateUserExtra::test_missing_current_password_returns_400 PASSED [ 28%]
+OdaiBotAPI/tests/test_auth_users.py::TestUpdateUserExtra::test_admin_can_change_role PASSED [ 28%]
+OdaiBotAPI/tests/test_deps.py::TestHashPassword::test_returns_salt_and_digest PASSED [ 29%]
+OdaiBotAPI/tests/test_deps.py::TestHashPassword::test_same_password_different_salts PASSED [ 29%]
+OdaiBotAPI/tests/test_deps.py::TestHashPassword::test_different_passwords_different_hashes PASSED [ 30%]
+OdaiBotAPI/tests/test_deps.py::TestVerifyPassword::test_correct_password PASSED [ 30%]
+OdaiBotAPI/tests/test_deps.py::TestVerifyPassword::test_wrong_password PASSED [ 30%]
+OdaiBotAPI/tests/test_deps.py::TestVerifyPassword::test_malformed_hash_returns_false PASSED [ 31%]
+OdaiBotAPI/tests/test_deps.py::TestVerifyPassword::test_empty_password PASSED [ 31%]
+OdaiBotAPI/tests/test_deps.py::TestNormalizeTags::test_none_returns_empty_list PASSED [ 32%]
+OdaiBotAPI/tests/test_deps.py::TestNormalizeTags::test_comma_separated_string PASSED [ 32%]
+OdaiBotAPI/tests/test_deps.py::TestNormalizeTags::test_string_with_spaces PASSED [ 33%]
+OdaiBotAPI/tests/test_deps.py::TestNormalizeTags::test_list_input PASSED [ 33%]
+OdaiBotAPI/tests/test_deps.py::TestNormalizeTags::test_list_with_empty_strings PASSED [ 33%]
+OdaiBotAPI/tests/test_deps.py::TestNormalizeTags::test_empty_string PASSED [ 34%]
+OdaiBotAPI/tests/test_deps.py::TestNormalizeTags::test_single_tag PASSED [ 34%]
+OdaiBotAPI/tests/test_deps.py::TestGetGuildPlan::test_returns_plan_when_record_exists PASSED [ 35%]
+OdaiBotAPI/tests/test_deps.py::TestGetGuildPlan::test_falls_back_to_free_when_no_record PASSED [ 35%]
+OdaiBotAPI/tests/test_deps.py::TestGetGuildPlan::test_falls_back_to_empty_dict_when_plans_table_empty PASSED [ 36%]
+OdaiBotAPI/tests/test_deps.py::TestRequireDashboardPlan::test_free_plan_raises_403 PASSED [ 36%]
+OdaiBotAPI/tests/test_deps.py::TestRequireDashboardPlan::test_light_plan_passes PASSED [ 36%]
+OdaiBotAPI/tests/test_deps.py::TestRequireDashboardPlan::test_pro_plan_passes PASSED [ 37%]
+OdaiBotAPI/tests/test_deps.py::TestRequireProPlan::test_free_raises_403 PASSED [ 37%]
+OdaiBotAPI/tests/test_deps.py::TestRequireProPlan::test_light_raises_403 PASSED [ 38%]
+OdaiBotAPI/tests/test_deps.py::TestRequireProPlan::test_pro_passes PASSED [ 38%]
+OdaiBotAPI/tests/test_deps.py::TestRequireProPlan::test_enterprise_passes PASSED [ 38%]
+OdaiBotAPI/tests/test_deps.py::TestCheckOdaiCapacity::test_null_capacity_is_unlimited PASSED [ 39%]
+OdaiBotAPI/tests/test_deps.py::TestCheckOdaiCapacity::test_zero_capacity_raises_403 PASSED [ 39%]
+OdaiBotAPI/tests/test_deps.py::TestCheckOdaiCapacity::test_under_capacity_passes PASSED [ 40%]
+OdaiBotAPI/tests/test_deps.py::TestCheckOdaiCapacity::test_at_capacity_raises_403 PASSED [ 40%]
+OdaiBotAPI/tests/test_deps.py::TestCheckOdaiCapacity::test_bulk_import_exceeding_capacity_raises_403 PASSED [ 41%]
+OdaiBotAPI/tests/test_odai.py::TestListOdai::test_success PASSED         [ 41%]
+OdaiBotAPI/tests/test_odai.py::TestListOdai::test_filter_by_tag PASSED   [ 41%]
+OdaiBotAPI/tests/test_odai.py::TestListOdai::test_filter_by_favorite PASSED [ 42%]
+OdaiBotAPI/tests/test_odai.py::TestListOdai::test_unauthenticated_returns_401 PASSED [ 42%]
+OdaiBotAPI/tests/test_odai.py::TestUploadOdai::test_success PASSED       [ 43%]
+OdaiBotAPI/tests/test_odai.py::TestUploadOdai::test_invalid_content_type_returns_400 PASSED [ 43%]
+OdaiBotAPI/tests/test_odai.py::TestUploadOdai::test_file_too_large_returns_400 PASSED [ 44%]
+OdaiBotAPI/tests/test_odai.py::TestUploadOdai::test_duplicate_returns_409 PASSED [ 44%]
+OdaiBotAPI/tests/test_odai.py::TestUpdateOdai::test_success PASSED       [ 44%]
+OdaiBotAPI/tests/test_odai.py::TestUpdateOdai::test_not_found_returns_404 PASSED [ 45%]
+OdaiBotAPI/tests/test_odai.py::TestDeleteOdai::test_success PASSED       [ 45%]
+OdaiBotAPI/tests/test_odai.py::TestDeleteOdai::test_not_found_returns_404 PASSED [ 46%]
+OdaiBotAPI/tests/test_odai_extra.py::TestGetOdaiHistory::test_success PASSED [ 46%]
+OdaiBotAPI/tests/test_odai_extra.py::TestGetOdaiHistory::test_not_found_returns_404 PASSED [ 47%]
+OdaiBotAPI/tests/test_odai_extra.py::TestGetOdaiHistory::test_pagination_params PASSED [ 47%]
+OdaiBotAPI/tests/test_odai_extra.py::TestGetOdaiHistory::test_per_page_clamped_to_50 PASSED [ 47%]
+OdaiBotAPI/tests/test_odai_extra.py::TestGetOdaiHistory::test_unauthenticated_returns_401 PASSED [ 48%]
+OdaiBotAPI/tests/test_odai_extra.py::TestGetOdaiUsage::test_success PASSED [ 48%]
+OdaiBotAPI/tests/test_odai_extra.py::TestGetOdaiUsage::test_channel_id_is_string PASSED [ 49%]
+OdaiBotAPI/tests/test_odai_extra.py::TestGetOdaiUsage::test_not_found_returns_404 PASSED [ 49%]
+OdaiBotAPI/tests/test_odai_extra.py::TestGetOdaiUsage::test_empty_usage PASSED [ 50%]
+OdaiBotAPI/tests/test_odai_extra.py::TestGetOdaiUsage::test_unauthenticated_returns_401 PASSED [ 50%]
+OdaiBotAPI/tests/test_odai_extra.py::TestGetOdaiImage::test_not_found_odai_returns_404 PASSED [ 50%]
+OdaiBotAPI/tests/test_odai_extra.py::TestGetOdaiImage::test_no_storage_path_returns_404 PASSED [ 51%]
+OdaiBotAPI/tests/test_odai_extra.py::TestGetOdaiImage::test_file_not_on_disk_returns_404 PASSED [ 51%]
+OdaiBotAPI/tests/test_odai_extra.py::TestGetOdaiImage::test_success_jpeg PASSED [ 52%]
+OdaiBotAPI/tests/test_odai_extra.py::TestGetOdaiImage::test_success_png PASSED [ 52%]
+OdaiBotAPI/tests/test_odai_extra.py::TestGetOdaiImage::test_success_webp PASSED [ 52%]
+OdaiBotAPI/tests/test_odai_extra.py::TestGetOdaiImage::test_unauthenticated_returns_401 PASSED [ 53%]
+OdaiBotAPI/tests/test_odai_extra.py::TestImportOdai::test_success_single_file PASSED [ 53%]
+OdaiBotAPI/tests/test_odai_extra.py::TestImportOdai::test_duplicate_file_fails_gracefully PASSED [ 54%]
+OdaiBotAPI/tests/test_odai_extra.py::TestImportOdai::test_partial_success_multiple_files PASSED [ 54%]
+OdaiBotAPI/tests/test_odai_extra.py::TestImportOdai::test_unauthenticated_returns_401 PASSED [ 55%]
+OdaiBotAPI/tests/test_odai_extra.py::TestUpdateOdaiEdgeCases::test_filename_rename_conflict_returns_409 PASSED [ 55%]
+OdaiBotAPI/tests/test_odai_extra.py::TestUpdateOdaiEdgeCases::test_empty_filename_returns_400 PASSED [ 55%]
+OdaiBotAPI/tests/test_odai_extra.py::TestUpdateOdaiEdgeCases::test_memo_update PASSED [ 56%]
+OdaiBotAPI/tests/test_odai_extra.py::TestUpdateOdaiEdgeCases::test_soft_delete PASSED [ 56%]
+OdaiBotAPI/tests/test_odai_extra.py::TestUpdateOdaiEdgeCases::test_restore_odai PASSED [ 57%]
+OdaiBotAPI/tests/test_odai_extra.py::TestUpdateOdaiEdgeCases::test_tags_update PASSED [ 57%]
+OdaiBotAPI/tests/test_odai_extra.py::TestUpdateOdaiEdgeCases::test_filename_successful_rename PASSED [ 58%]
+OdaiBotAPI/tests/test_plan_gates.py::TestDashboardPlanGate::test_free_plan_login_returns_403 PASSED [ 58%]
+OdaiBotAPI/tests/test_plan_gates.py::TestDashboardPlanGate::test_light_plan_login_succeeds PASSED [ 58%]
+OdaiBotAPI/tests/test_plan_gates.py::TestDashboardPlanGate::test_pro_plan_login_succeeds PASSED [ 59%]
+OdaiBotAPI/tests/test_plan_gates.py::TestProPlanGate::test_odai_list_free_returns_403 PASSED [ 59%]
+OdaiBotAPI/tests/test_plan_gates.py::TestProPlanGate::test_odai_list_light_returns_403 PASSED [ 60%]
+OdaiBotAPI/tests/test_plan_gates.py::TestProPlanGate::test_odai_list_pro_passes PASSED [ 60%]
+OdaiBotAPI/tests/test_plan_gates.py::TestProPlanGate::test_tags_list_free_returns_403 PASSED [ 61%]
+OdaiBotAPI/tests/test_plan_gates.py::TestProPlanGate::test_tags_list_light_returns_403 PASSED [ 61%]
+OdaiBotAPI/tests/test_plan_gates.py::TestProPlanGate::test_tags_list_pro_passes PASSED [ 61%]
+OdaiBotAPI/tests/test_plan_gates.py::TestProPlanGate::test_schedules_list_free_returns_403 PASSED [ 62%]
+OdaiBotAPI/tests/test_plan_gates.py::TestProPlanGate::test_schedules_list_light_returns_403 PASSED [ 62%]
+OdaiBotAPI/tests/test_plan_gates.py::TestProPlanGate::test_schedules_list_pro_passes PASSED [ 63%]
+OdaiBotAPI/tests/test_plan_gates.py::TestProPlanGate::test_settings_put_free_returns_403 PASSED [ 63%]
+OdaiBotAPI/tests/test_plan_gates.py::TestProPlanGate::test_settings_put_light_returns_403 PASSED [ 63%]
+OdaiBotAPI/tests/test_plan_gates.py::TestProPlanGate::test_settings_put_pro_passes PASSED [ 64%]
+OdaiBotAPI/tests/test_plan_gates.py::TestProPlanGate::test_settings_get_light_passes PASSED [ 64%]
+OdaiBotAPI/tests/test_plan_gates.py::TestProPlanGate::test_summary_free_passes_auth_but_plan_not_gated PASSED [ 65%]
+OdaiBotAPI/tests/test_plan_schedule.py::TestGetPlanSchedule::test_returns_schedule_when_exists PASSED [ 65%]
+OdaiBotAPI/tests/test_plan_schedule.py::TestGetPlanSchedule::test_returns_null_when_no_schedule PASSED [ 66%]
+OdaiBotAPI/tests/test_plan_schedule.py::TestGetPlanSchedule::test_unauthenticated_returns_401 PASSED [ 66%]
+OdaiBotAPI/tests/test_plan_schedule.py::TestSetPlanSchedule::test_creates_schedule_when_none_exists PASSED [ 66%]
+OdaiBotAPI/tests/test_plan_schedule.py::TestSetPlanSchedule::test_updates_existing_schedule PASSED [ 67%]
+OdaiBotAPI/tests/test_plan_schedule.py::TestSetPlanSchedule::test_non_pro_cannot_create_second_schedule PASSED [ 67%]
+OdaiBotAPI/tests/test_plan_schedule.py::TestSetPlanSchedule::test_free_plan_can_create_first_schedule PASSED [ 68%]
+OdaiBotAPI/tests/test_plan_schedule.py::TestSetPlanSchedule::test_unauthenticated_returns_401 PASSED [ 68%]
+OdaiBotAPI/tests/test_plan_schedule.py::TestDeletePlanSchedule::test_success PASSED [ 69%]
+OdaiBotAPI/tests/test_plan_schedule.py::TestDeletePlanSchedule::test_not_found_returns_404 PASSED [ 69%]
+OdaiBotAPI/tests/test_plan_schedule.py::TestDeletePlanSchedule::test_wrong_guild_returns_404 PASSED [ 69%]
+OdaiBotAPI/tests/test_plan_schedule.py::TestDeletePlanSchedule::test_unauthenticated_returns_401 PASSED [ 70%]
+OdaiBotAPI/tests/test_schedules.py::TestListSchedules::test_success PASSED [ 70%]
+OdaiBotAPI/tests/test_schedules.py::TestListSchedules::test_unauthenticated_returns_401 PASSED [ 71%]
+OdaiBotAPI/tests/test_schedules.py::TestCreateSchedule::test_success PASSED [ 71%]
+OdaiBotAPI/tests/test_schedules.py::TestCreateSchedule::test_invalid_time_format_returns_400 PASSED [ 72%]
+OdaiBotAPI/tests/test_schedules.py::TestCreateSchedule::test_invalid_tag_mode_returns_400 PASSED [ 72%]
+OdaiBotAPI/tests/test_schedules.py::TestCreateSchedule::test_allow_mode_without_tags_returns_400 PASSED [ 72%]
+OdaiBotAPI/tests/test_schedules.py::TestCreateSchedule::test_allow_mode_with_tags_succeeds PASSED [ 73%]
+OdaiBotAPI/tests/test_schedules.py::TestUpdateSchedule::test_success PASSED [ 73%]
+OdaiBotAPI/tests/test_schedules.py::TestUpdateSchedule::test_not_found_returns_404 PASSED [ 74%]
+OdaiBotAPI/tests/test_schedules.py::TestDeleteSchedule::test_success PASSED [ 74%]
+OdaiBotAPI/tests/test_schedules.py::TestDeleteSchedule::test_not_found_returns_404 PASSED [ 75%]
+OdaiBotAPI/tests/test_settings.py::TestGetSettings::test_success PASSED  [ 75%]
+OdaiBotAPI/tests/test_settings.py::TestGetSettings::test_returns_defaults_when_no_row PASSED [ 75%]
+OdaiBotAPI/tests/test_settings.py::TestGetSettings::test_use_default_odai_false PASSED [ 76%]
+OdaiBotAPI/tests/test_settings.py::TestGetSettings::test_unauthenticated_returns_401 PASSED [ 76%]
+OdaiBotAPI/tests/test_settings.py::TestUpdateSettings::test_update_existing PASSED [ 77%]
+OdaiBotAPI/tests/test_settings.py::TestUpdateSettings::test_insert_when_not_exists PASSED [ 77%]
+OdaiBotAPI/tests/test_settings.py::TestUpdateSettings::test_update_use_default_odai PASSED [ 77%]
+OdaiBotAPI/tests/test_settings.py::TestUpdateSettings::test_non_admin_returns_403 PASSED [ 78%]
+OdaiBotAPI/tests/test_settings_extra.py::TestGetGuildName::test_success PASSED [ 78%]
+OdaiBotAPI/tests/test_settings_extra.py::TestGetGuildName::test_not_registered_returns_null PASSED [ 79%]
+OdaiBotAPI/tests/test_settings_extra.py::TestGetGuildName::test_no_auth_required PASSED [ 79%]
+OdaiBotAPI/tests/test_settings_extra.py::TestGetChannels::test_success PASSED [ 80%]
+OdaiBotAPI/tests/test_settings_extra.py::TestGetChannels::test_empty_returns_empty_list PASSED [ 80%]
+OdaiBotAPI/tests/test_settings_extra.py::TestGetChannels::test_channel_id_is_string PASSED [ 80%]
+OdaiBotAPI/tests/test_settings_extra.py::TestGetChannels::test_unauthenticated_returns_401 PASSED [ 81%]
+OdaiBotAPI/tests/test_stripe.py::TestGetGuildPlanEndpoint::test_returns_plan_when_record_exists PASSED [ 81%]
+OdaiBotAPI/tests/test_stripe.py::TestGetGuildPlanEndpoint::test_returns_free_defaults_when_no_record PASSED [ 82%]
+OdaiBotAPI/tests/test_stripe.py::TestGetGuildPlanEndpoint::test_current_period_end_is_returned PASSED [ 82%]
+OdaiBotAPI/tests/test_stripe.py::TestStripeWebhook::test_invalid_signature_returns_400 PASSED [ 83%]
+OdaiBotAPI/tests/test_stripe.py::TestStripeWebhook::test_checkout_completed_subscription_upserts_guild_plan PASSED [ 83%]
+OdaiBotAPI/tests/test_stripe.py::TestStripeWebhook::test_checkout_completed_expand_increments_capacity PASSED [ 83%]
+OdaiBotAPI/tests/test_stripe.py::TestStripeWebhook::test_subscription_updated_updates_status PASSED [ 84%]
+OdaiBotAPI/tests/test_stripe.py::TestStripeWebhook::test_subscription_deleted_sets_canceled PASSED [ 84%]
+OdaiBotAPI/tests/test_stripe.py::TestStripeWebhook::test_unknown_event_type_returns_200 PASSED [ 85%]
+OdaiBotAPI/tests/test_stripe.py::TestStripeWebhook::test_checkout_completed_missing_guild_id_is_noop PASSED [ 85%]
+OdaiBotAPI/tests/test_stripe.py::TestCreateCheckout::test_no_bot_secret_returns_401 PASSED [ 86%]
+OdaiBotAPI/tests/test_stripe.py::TestCreateCheckout::test_wrong_bot_secret_returns_401 PASSED [ 86%]
+OdaiBotAPI/tests/test_stripe.py::TestCreateCheckout::test_plan_not_found_returns_400 PASSED [ 86%]
+OdaiBotAPI/tests/test_stripe.py::TestCreateCheckout::test_plan_without_price_id_returns_400 PASSED [ 87%]
+OdaiBotAPI/tests/test_stripe.py::TestCreateCheckout::test_success_returns_checkout_url PASSED [ 87%]
+OdaiBotAPI/tests/test_stripe.py::TestCreateExpand::test_no_bot_secret_returns_401 PASSED [ 88%]
+OdaiBotAPI/tests/test_stripe.py::TestCreateExpand::test_guild_not_found_returns_404 PASSED [ 88%]
+OdaiBotAPI/tests/test_stripe.py::TestCreateExpand::test_cannot_expand_returns_403 PASSED [ 88%]
+OdaiBotAPI/tests/test_stripe.py::TestCreateExpand::test_exceeds_max_capacity_returns_400 PASSED [ 89%]
+OdaiBotAPI/tests/test_stripe.py::TestCreateExpand::test_success_returns_checkout_url PASSED [ 89%]
+OdaiBotAPI/tests/test_summary.py::TestDashboardSummary::test_success_with_last_post PASSED [ 90%]
+OdaiBotAPI/tests/test_summary.py::TestDashboardSummary::test_success_without_last_post PASSED [ 90%]
+OdaiBotAPI/tests/test_summary.py::TestDashboardSummary::test_unauthenticated_returns_401 PASSED [ 91%]
+OdaiBotAPI/tests/test_tags.py::TestListTags::test_success PASSED         [ 91%]
+OdaiBotAPI/tests/test_tags.py::TestListTags::test_search_passes_query_param PASSED [ 91%]
+OdaiBotAPI/tests/test_tags.py::TestListTags::test_unauthenticated_returns_401 PASSED [ 92%]
+OdaiBotAPI/tests/test_tags.py::TestCreateTag::test_success PASSED        [ 92%]
+OdaiBotAPI/tests/test_tags.py::TestCreateTag::test_duplicate_name_returns_409 PASSED [ 93%]
+OdaiBotAPI/tests/test_tags.py::TestUpdateTag::test_success PASSED        [ 93%]
+OdaiBotAPI/tests/test_tags.py::TestUpdateTag::test_not_found_returns_404 PASSED [ 94%]
+OdaiBotAPI/tests/test_tags.py::TestUpdateTag::test_name_conflict_returns_409 PASSED [ 94%]
+OdaiBotAPI/tests/test_tags.py::TestUpdateTag::test_no_fields_returns_400 PASSED [ 94%]
+OdaiBotAPI/tests/test_tags.py::TestDeleteTag::test_success PASSED        [ 95%]
+OdaiBotAPI/tests/test_tags.py::TestDeleteTag::test_not_found_returns_404 PASSED [ 95%]
+OdaiBotAPI/tests/test_tags_extra.py::TestGetTagDetail::test_success PASSED [ 96%]
+OdaiBotAPI/tests/test_tags_extra.py::TestGetTagDetail::test_not_found_returns_404 PASSED [ 96%]
+OdaiBotAPI/tests/test_tags_extra.py::TestGetTagDetail::test_includes_odai_list PASSED [ 97%]
+OdaiBotAPI/tests/test_tags_extra.py::TestGetTagDetail::test_includes_schedules_with_enabled_as_bool PASSED [ 97%]
+OdaiBotAPI/tests/test_tags_extra.py::TestGetTagDetail::test_unauthenticated_returns_401 PASSED [ 97%]
+OdaiBotAPI/tests/test_test_post.py::TestTestPost::test_success PASSED    [ 98%]
+OdaiBotAPI/tests/test_test_post.py::TestTestPost::test_no_candidate_returns_404 PASSED [ 98%]
+OdaiBotAPI/tests/test_test_post.py::TestTestPost::test_with_tag_mode_and_list PASSED [ 99%]
+OdaiBotAPI/tests/test_test_post.py::TestTestPost::test_default_tag_mode_is_all PASSED [ 99%]
+OdaiBotAPI/tests/test_test_post.py::TestTestPost::test_unauthenticated_returns_401 PASSED [100%]
+
+============================== warnings summary ===============================
+OdaiBotAPI\api.py:46
+  C:\Users\s_horiuchi\Documents\git\discode_OdaiBot\discode_OdaiBot\OdaiBotAPI\api.py:46: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("shutdown")
+
+.venv\Lib\site-packages\fastapi\applications.py:4495
+  C:\Users\s_horiuchi\Documents\git\discode_OdaiBot\discode_OdaiBot\.venv\Lib\site-packages\fastapi\applications.py:4495: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    return self.router.on_event(event_type)
+
+OdaiBotAPI\tests\test_auth_users.py:16
+  C:\Users\s_horiuchi\Documents\git\discode_OdaiBot\discode_OdaiBot\OdaiBotAPI\tests\test_auth_users.py:16: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _NOW = datetime.utcnow()
+
+OdaiBotAPI\tests\test_odai.py:13
+  C:\Users\s_horiuchi\Documents\git\discode_OdaiBot\discode_OdaiBot\OdaiBotAPI\tests\test_odai.py:13: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _NOW = datetime.utcnow()
+
+OdaiBotAPI\tests\test_odai_extra.py:17
+  C:\Users\s_horiuchi\Documents\git\discode_OdaiBot\discode_OdaiBot\OdaiBotAPI\tests\test_odai_extra.py:17: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _NOW = datetime.utcnow()
+
+OdaiBotAPI\tests\test_schedules.py:13
+  C:\Users\s_horiuchi\Documents\git\discode_OdaiBot\discode_OdaiBot\OdaiBotAPI\tests\test_schedules.py:13: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _NOW = datetime.utcnow()
+
+OdaiBotAPI\tests\test_settings.py:12
+  C:\Users\s_horiuchi\Documents\git\discode_OdaiBot\discode_OdaiBot\OdaiBotAPI\tests\test_settings.py:12: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _NOW = datetime.utcnow()
+
+OdaiBotAPI\tests\test_summary.py:12
+  C:\Users\s_horiuchi\Documents\git\discode_OdaiBot\discode_OdaiBot\OdaiBotAPI\tests\test_summary.py:12: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _NOW = datetime.utcnow()
+
+OdaiBotAPI\tests\test_tags.py:12
+  C:\Users\s_horiuchi\Documents\git\discode_OdaiBot\discode_OdaiBot\OdaiBotAPI\tests\test_tags.py:12: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _NOW = datetime.utcnow()
+
+OdaiBotAPI\tests\test_tags_extra.py:12
+  C:\Users\s_horiuchi\Documents\git\discode_OdaiBot\discode_OdaiBot\OdaiBotAPI\tests\test_tags_extra.py:12: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _NOW = datetime.utcnow()
+
+OdaiBotAPI/tests/test_auth.py::TestListUsers::test_success
+  C:\Users\s_horiuchi\Documents\git\discode_OdaiBot\discode_OdaiBot\OdaiBotAPI\tests\test_auth.py:174: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now = datetime.utcnow()
+
+OdaiBotAPI/tests/test_auth.py::TestCreateUser::test_success_first_user
+  C:\Users\s_horiuchi\Documents\git\discode_OdaiBot\discode_OdaiBot\OdaiBotAPI\tests\test_auth.py:195: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now = datetime.utcnow()
+
+OdaiBotAPI/tests/test_auth.py::TestUpdateUser::test_success
+  C:\Users\s_horiuchi\Documents\git\discode_OdaiBot\discode_OdaiBot\OdaiBotAPI\tests\test_auth.py:235: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now = datetime.utcnow()
+
+OdaiBotAPI/tests/test_stripe.py::TestStripeWebhook::test_subscription_updated_updates_status
+  C:\Users\s_horiuchi\Documents\git\discode_OdaiBot\discode_OdaiBot\OdaiBotAPI\routers\stripe.py:107: DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.fromtimestamp(timestamp, datetime.UTC).
+    datetime.datetime.utcfromtimestamp(period_end).strftime("%Y-%m-%d %H:%M:%S")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: C:\Users\s_horiuchi\Documents\git\discode_OdaiBot\discode_OdaiBot\OdaiBotAPI\tests\evidence\junit_report.xml -
+====================== 236 passed, 14 warnings in 5.56s =======================

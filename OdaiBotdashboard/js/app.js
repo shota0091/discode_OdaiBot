@@ -30,6 +30,7 @@ const Router = {
     '#/dashboard/odai':       OdaiPage,
     '#/dashboard/schedules':  SchedulesPage,
     '#/dashboard/settings':   SettingsPage,
+    '#/dashboard/plan':       PlanPage,
     '#/dashboard/invites':    InvitesPage,
   },
 

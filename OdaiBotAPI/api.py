@@ -18,7 +18,7 @@ ROOT = Path(__file__).resolve().parent
 sys.path.append(str(ROOT.parent / "OdaiBot"))
 
 from .deps import db
-from .routers import auth_router, auth_global_router, odai_router, schedules_router, settings_router, summary_router, tags_router, test_post_router
+from .routers import auth_router, auth_global_router, odai_router, plan_schedule_router, schedules_router, settings_router, stripe_router, summary_router, tags_router, test_post_router
 
 app = FastAPI(title="OdaiBotAPI")
 
@@ -37,8 +37,10 @@ app.include_router(odai_router)
 app.include_router(tags_router)
 app.include_router(schedules_router)
 app.include_router(settings_router)
+app.include_router(stripe_router)
 app.include_router(summary_router)
 app.include_router(test_post_router)
+app.include_router(plan_schedule_router)
 
 
 @app.on_event("shutdown")

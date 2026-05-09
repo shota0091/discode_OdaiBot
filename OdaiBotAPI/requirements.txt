@@ -3,3 +3,4 @@ uvicorn==0.25.0
 python-multipart==0.0.9
 mysql-connector-python==9.4.0
 python-dotenv==1.0.1
+stripe==11.4.1

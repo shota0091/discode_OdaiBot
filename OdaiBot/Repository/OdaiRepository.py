@@ -21,22 +21,51 @@ class OdaiRepository:
         rows = self.db.query(sql, tuple(params))
         return [self._attach_tags(row) for row in rows]
 
-    def load_for_channel(self, guild_id: int, channel_id: int | None):
-        """チャンネルの odai_usage に含まれない（未投稿の）お題を返す。"""
+    def load_for_channel(self, guild_id: int, channel_id: int | None, include_defaults: bool = False):
+        """チャンネルの odai_usage に含まれない（未投稿の）お題を返す。
+        include_defaults=True のとき guild_default_odai のお題も候補に加える。
+        """
         if channel_id is None:
-            rows = self.db.query(
+            custom_rows = self.db.query(
                 "SELECT id, guild_id, filename, storage_path, added_at, deleted_at "
                 "FROM odai WHERE guild_id = %s AND deleted_at IS NULL",
                 (guild_id,),
             )
         else:
-            rows = self.db.query(
+            custom_rows = self.db.query(
                 "SELECT id, guild_id, filename, storage_path, added_at, deleted_at "
                 "FROM odai WHERE guild_id = %s AND deleted_at IS NULL "
                 "AND id NOT IN (SELECT odai_id FROM odai_usage WHERE guild_id = %s AND channel_id = %s)",
                 (guild_id, guild_id, channel_id),
             )
-        return [self._attach_tags(row) for row in rows]
+
+        rows = list(custom_rows)
+
+        if include_defaults:
+            if channel_id is None:
+                default_rows = self.db.query(
+                    "SELECT d.id, d.filename, d.storage_path "
+                    "FROM guild_default_odai gdo JOIN default_odai d ON gdo.default_odai_id = d.id "
+                    "WHERE gdo.guild_id = %s AND d.is_active = 1",
+                    (guild_id,),
+                )
+            else:
+                default_rows = self.db.query(
+                    "SELECT d.id, d.filename, d.storage_path "
+                    "FROM guild_default_odai gdo JOIN default_odai d ON gdo.default_odai_id = d.id "
+                    "WHERE gdo.guild_id = %s AND d.is_active = 1 "
+                    "AND d.id NOT IN (SELECT odai_id FROM odai_usage WHERE guild_id = %s AND channel_id = %s)",
+                    (guild_id, guild_id, channel_id),
+                )
+            seen = {r["id"] for r in rows}
+            for r in default_rows:
+                if r["id"] not in seen:
+                    # default_odai は guild_id / added_at / deleted_at を持たないので補完
+                    rows.append({**r, "guild_id": None, "added_at": None, "deleted_at": None, "tags": []})
+                    seen.add(r["id"])
+
+        # tags が補完済みの行（デフォルトお題）はスキップ
+        return [row if "tags" in row else self._attach_tags(row) for row in rows]
 
     def record_usage(self, guild_id: int, channel_id: int, odai_id: int):
         """お題をチャンネルの投稿済みとして記録する。"""
@@ -113,11 +142,17 @@ class OdaiRepository:
 
         return True, f"お題を登録しました：{filename}"
 
-    def get_odai_data(self, odai_id: int):
-        row = self.db.query_one(
-            "SELECT id, filename, storage_path FROM odai WHERE id = %s AND deleted_at IS NULL",
-            (odai_id,),
-        )
+    def get_odai_data(self, odai_id: int, is_default: bool = False):
+        if is_default:
+            row = self.db.query_one(
+                "SELECT id, filename, storage_path FROM default_odai WHERE id = %s AND is_active = 1",
+                (odai_id,),
+            )
+        else:
+            row = self.db.query_one(
+                "SELECT id, filename, storage_path FROM odai WHERE id = %s AND deleted_at IS NULL",
+                (odai_id,),
+            )
         if not row:
             return None
         if row.get("storage_path"):

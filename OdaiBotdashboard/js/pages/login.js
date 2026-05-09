@@ -55,6 +55,12 @@ const LoginPage = {
         localStorage.setItem('role', first.role);
         localStorage.setItem('user_id', data.user_id ?? '');
         localStorage.setItem('user', JSON.stringify({ username, display_name: data.display_name || null }));
+        try {
+          const planRes = await API.getPlan();
+          localStorage.setItem('plan_name', planRes.data.plan_name || 'free');
+        } catch (_) {
+          localStorage.setItem('plan_name', 'free');
+        }
         location.hash = '#/dashboard';
       } catch (err) {
         errorEl.textContent = err.message;

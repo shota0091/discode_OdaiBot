@@ -4,10 +4,10 @@ from typing import List, Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile
 
-from ..deps import db, get_current_user, normalize_tags, odai_repo, require_admin
+from ..deps import check_odai_capacity, db, get_current_user, normalize_tags, odai_repo, require_admin, require_pro_plan
 from ..schemas import OdaiUpdateRequest
 
-router = APIRouter(prefix="/api/guilds/{guild_id}/odai", tags=["odai"])
+router = APIRouter(prefix="/api/guilds/{guild_id}/odai", tags=["odai"], dependencies=[Depends(require_pro_plan)])
 
 _ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp"}
 _MAX_FILE_SIZE = 8 * 1024 * 1024  # 8 MB
@@ -149,6 +149,8 @@ async def upload_odai(
     if len(content) > _MAX_FILE_SIZE:
         raise HTTPException(status_code=400, detail="ファイルサイズは 8 MB 以下にしてください")
 
+    check_odai_capacity(guild_id, adding=1)
+
     parsed_tags = normalize_tags(tags)
     success, message = odai_repo.add_odai(guild_id, file.filename, content, parsed_tags, created_by=current_user["id"])
     if not success:
@@ -165,6 +167,8 @@ async def import_odai(
     source_path: Optional[str] = Form(None),
     current_user: dict = Depends(get_current_user),
 ):
+    check_odai_capacity(guild_id, adding=len(files))
+
     parsed_tags = normalize_tags(tags)
     results = []
     for upload in files:

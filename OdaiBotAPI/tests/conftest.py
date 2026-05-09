@@ -41,6 +41,7 @@ from fastapi.testclient import TestClient
 
 from OdaiBotAPI.api import app
 from OdaiBotAPI import deps
+from OdaiBotAPI import limiter
 
 # ─────────────────────────────────────────────────────────────
 # テスト定数
@@ -63,6 +64,7 @@ def reset_mocks():
     reset_mock() はデフォルトで side_effect / return_value をクリアしないため、
     子モックごとに明示的にリセットする。
     """
+    limiter._buckets.clear()
     for child in (
         deps.db.query_one, deps.db.query, deps.db.execute,
         deps.odai_repo.get_tags, deps.odai_repo.add_odai, deps.odai_repo._ensure_tag,
@@ -75,22 +77,34 @@ def reset_mocks():
 
 @pytest.fixture
 def admin_client():
-    """管理者として認証済みの TestClient。"""
-    app.dependency_overrides[deps.get_current_user] = lambda guild_id=GUILD_ID: ADMIN
-    app.dependency_overrides[deps.require_admin]    = lambda guild_id=GUILD_ID: ADMIN
+    """管理者として認証済みの TestClient。プランゲートもバイパス。"""
+    app.dependency_overrides[deps.get_current_user]       = lambda guild_id=GUILD_ID: ADMIN
+    app.dependency_overrides[deps.require_admin]          = lambda guild_id=GUILD_ID: ADMIN
+    app.dependency_overrides[deps.require_pro_plan]       = lambda guild_id=GUILD_ID: None
+    app.dependency_overrides[deps.require_dashboard_plan] = lambda guild_id=GUILD_ID: None
     return TestClient(app)
 
 
 @pytest.fixture
 def user_client():
-    """一般ユーザーとして認証済みの TestClient（require_admin は 403 を返す）。"""
-    app.dependency_overrides[deps.get_current_user] = lambda guild_id=GUILD_ID: USER
+    """一般ユーザーとして認証済みの TestClient。プランゲートもバイパス。"""
+    app.dependency_overrides[deps.get_current_user]       = lambda guild_id=GUILD_ID: USER
+    app.dependency_overrides[deps.require_pro_plan]       = lambda guild_id=GUILD_ID: None
+    app.dependency_overrides[deps.require_dashboard_plan] = lambda guild_id=GUILD_ID: None
     return TestClient(app)
 
 
 @pytest.fixture
 def anon_client():
     """未認証の TestClient。"""
+    return TestClient(app, raise_server_exceptions=False)
+
+
+@pytest.fixture
+def gate_client():
+    """プランゲートを実行する認証済みクライアント（require_pro_plan / require_dashboard_plan はバイパスしない）。"""
+    app.dependency_overrides[deps.get_current_user] = lambda guild_id=GUILD_ID: ADMIN
+    app.dependency_overrides[deps.require_admin]    = lambda guild_id=GUILD_ID: ADMIN
     return TestClient(app, raise_server_exceptions=False)
 
 

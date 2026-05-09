@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends
 
-from ..deps import db, get_current_user, require_admin
+from ..deps import db, get_current_user, require_admin, require_pro_plan
 from ..schemas import SettingsRequest
 
 router = APIRouter(prefix="/api/guilds/{guild_id}/settings", tags=["settings"])
@@ -30,16 +30,17 @@ def get_channels(guild_id: int):
 @router.get("", dependencies=[Depends(get_current_user)])
 def get_settings(guild_id: int):
     row = db.query_one(
-        "SELECT guild_id, guild_name, bot_enabled, timezone, updated_at FROM guild_settings WHERE guild_id = %s",
+        "SELECT guild_id, guild_name, bot_enabled, timezone, use_default_odai, updated_at FROM guild_settings WHERE guild_id = %s",
         (guild_id,),
     )
     if not row:
-        return {"data": {"guild_id": guild_id, "guild_name": None, **_DEFAULTS, "updated_at": None}}
+        return {"data": {"guild_id": guild_id, "guild_name": None, **_DEFAULTS, "use_default_odai": True, "updated_at": None}}
     row["bot_enabled"] = bool(row["bot_enabled"])
+    row["use_default_odai"] = bool(row["use_default_odai"])
     return {"data": row}
 
 
-@router.put("", dependencies=[Depends(require_admin)])
+@router.put("", dependencies=[Depends(require_admin), Depends(require_pro_plan)])
 def update_settings(guild_id: int, payload: SettingsRequest):
     existing = db.query_one("SELECT id FROM guild_settings WHERE guild_id = %s", (guild_id,))
 
@@ -51,6 +52,9 @@ def update_settings(guild_id: int, payload: SettingsRequest):
         if payload.timezone is not None:
             fields.append("timezone = %s")
             params.append(payload.timezone)
+        if payload.use_default_odai is not None:
+            fields.append("use_default_odai = %s")
+            params.append(1 if payload.use_default_odai else 0)
         if fields:
             fields.append("updated_at = CURRENT_TIMESTAMP")
             params.append(guild_id)
@@ -69,8 +73,9 @@ def update_settings(guild_id: int, payload: SettingsRequest):
         )
 
     row = db.query_one(
-        "SELECT guild_id, bot_enabled, timezone, updated_at FROM guild_settings WHERE guild_id = %s",
+        "SELECT guild_id, bot_enabled, timezone, use_default_odai, updated_at FROM guild_settings WHERE guild_id = %s",
         (guild_id,),
     )
     row["bot_enabled"] = bool(row["bot_enabled"])
+    row["use_default_odai"] = bool(row["use_default_odai"])
     return {"data": row}

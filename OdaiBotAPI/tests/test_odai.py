@@ -83,6 +83,12 @@ class TestUploadOdai:
 
     def test_duplicate_returns_409(self, admin_client):
         deps.odai_repo.add_odai.return_value = (False, "ファイル名が重複しています")
+        # check_odai_capacity が get_guild_plan を呼ぶため、上限なし(None)のプランを返す
+        deps.db.query_one.return_value = {
+            "plan_name": "pro", "custom_odai_capacity": None,
+            "has_dashboard": 1, "has_discord_op": 1,
+            "can_expand_capacity": 1, "custom_odai_max": None, "status": "active",
+        }
 
         res = admin_client.post(
             self._url,
@@ -123,3 +129,7 @@ class TestDeleteOdai:
 
         res = admin_client.delete(f"{BASE}/odai/999")
         assert res.status_code == 404
+
+    def test_non_admin_returns_403(self, user_client):
+        res = user_client.delete(f"{BASE}/odai/1")
+        assert res.status_code == 403

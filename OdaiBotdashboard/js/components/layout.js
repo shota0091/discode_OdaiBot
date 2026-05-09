@@ -8,15 +8,21 @@ const Layout = {
     const guilds = JSON.parse(localStorage.getItem('guilds') || '[]');
     const hash = location.hash.split('?')[0];
 
+    const planName = localStorage.getItem('plan_name') || 'free';
+    const isPro = planName === 'pro' || planName === 'enterprise';
+
     const navItems = [
       { href: '#/dashboard', label: 'ダッシュボード', icon: '🏠' },
-      { href: '#/dashboard/odai', label: 'お題管理', icon: '🖼️' },
-      { href: '#/dashboard/tags', label: 'タグ管理', icon: '🏷️' },
-      { href: '#/dashboard/schedules', label: 'スケジュール管理', icon: '📅' },
-      { href: '#/dashboard/settings', label: '設定', icon: '⚙️' },
-      ...(isAdmin ? [
-        { href: '#/dashboard/users', label: 'ユーザー管理', icon: '👥' },
-        { href: '#/dashboard/invites', label: '招待管理', icon: '🔗' },
+      { href: '#/dashboard/plan', label: 'プラン', icon: '💳' },
+      ...(isPro ? [
+        { href: '#/dashboard/odai', label: 'お題管理', icon: '🖼️' },
+        { href: '#/dashboard/tags', label: 'タグ管理', icon: '🏷️' },
+        { href: '#/dashboard/schedules', label: 'スケジュール管理', icon: '📅' },
+        { href: '#/dashboard/settings', label: '設定', icon: '⚙️' },
+        ...(isAdmin ? [
+          { href: '#/dashboard/users', label: 'ユーザー管理', icon: '👥' },
+          { href: '#/dashboard/invites', label: '招待管理', icon: '🔗' },
+        ] : []),
       ] : []),
     ];
 
@@ -86,13 +92,19 @@ const Layout = {
     // guild switcher
     const switcher = document.getElementById('guild-switcher');
     if (switcher) {
-      switcher.addEventListener('change', e => {
+      switcher.addEventListener('change', async e => {
         const guilds = JSON.parse(localStorage.getItem('guilds') || '[]');
         const selected = guilds.find(g => g.guild_id === e.target.value);
         if (selected) {
           localStorage.setItem('guild_id', selected.guild_id);
           localStorage.setItem('guild_name', selected.guild_name || '');
           localStorage.setItem('role', selected.role);
+          try {
+            const planRes = await API.getPlan();
+            localStorage.setItem('plan_name', planRes.data.plan_name || 'free');
+          } catch (_) {
+            localStorage.setItem('plan_name', 'free');
+          }
           Router.navigate(location.hash);
         }
       });

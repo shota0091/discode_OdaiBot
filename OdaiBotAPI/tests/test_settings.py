@@ -12,8 +12,10 @@ from .conftest import BASE, GUILD_ID, make_cursor
 _NOW = datetime.utcnow()
 _SETTINGS_ROW = {
     "guild_id": GUILD_ID,
+    "guild_name": "Test Server",
     "bot_enabled": 1,
     "timezone": "Asia/Tokyo",
+    "use_default_odai": 1,
     "updated_at": _NOW,
 }
 
@@ -29,6 +31,7 @@ class TestGetSettings:
         data = res.json()["data"]
         assert data["bot_enabled"] is True
         assert data["timezone"] == "Asia/Tokyo"
+        assert data["use_default_odai"] is True
 
     def test_returns_defaults_when_no_row(self, admin_client):
         deps.db.query_one.return_value = None
@@ -38,7 +41,16 @@ class TestGetSettings:
         data = res.json()["data"]
         assert data["bot_enabled"] is True
         assert data["timezone"] == "Asia/Tokyo"
+        assert data["use_default_odai"] is True
         assert data["updated_at"] is None
+
+    def test_use_default_odai_false(self, admin_client):
+        row = {**_SETTINGS_ROW, "use_default_odai": 0}
+        deps.db.query_one.return_value = row
+
+        res = admin_client.get(self._url)
+        assert res.status_code == 200
+        assert res.json()["data"]["use_default_odai"] is False
 
     def test_unauthenticated_returns_401(self, anon_client):
         res = anon_client.get(self._url)
@@ -68,6 +80,17 @@ class TestUpdateSettings:
 
         res = admin_client.put(self._url, json={"timezone": "UTC"})
         assert res.status_code == 200
+
+    def test_update_use_default_odai(self, admin_client):
+        deps.db.query_one.side_effect = [
+            {"id": 1},
+            {**_SETTINGS_ROW, "use_default_odai": 0},
+        ]
+        deps.db.execute.return_value = make_cursor()
+
+        res = admin_client.put(self._url, json={"use_default_odai": False})
+        assert res.status_code == 200
+        assert res.json()["data"]["use_default_odai"] is False
 
     def test_non_admin_returns_403(self, user_client):
         res = user_client.put(self._url, json={"bot_enabled": True})

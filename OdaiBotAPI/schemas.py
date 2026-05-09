@@ -118,6 +118,7 @@ class ResetPasswordRequest(BaseModel):
 class SettingsRequest(BaseModel):
     bot_enabled: Optional[bool] = None
     timezone: Optional[str] = None
+    use_default_odai: Optional[bool] = None
 
 
 class GuildInfo(BaseModel):

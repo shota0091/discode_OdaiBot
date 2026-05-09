@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OdaiBotAPI UT エビデンス レポート</title>
+<style>
+  body { font-family: 'Helvetica Neue', Arial, sans-serif; margin: 0; padding: 0; background: #f5f7fa; color: #333; }
+  header { background: #2c3e50; color: white; padding: 24px 40px; }
+  header h1 { margin: 0 0 6px; font-size: 1.6em; }
+  header p { margin: 0; opacity: 0.8; font-size: 0.9em; }
+  .container { max-width: 1300px; margin: 0 auto; padding: 24px 40px; }
+  .summary-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 14px; margin-bottom: 28px; }
+  .card { background: white; border-radius: 8px; padding: 18px; text-align: center; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+  .card .val { font-size: 2.2em; font-weight: bold; }
+  .card.pass   .val { color: #27ae60; }
+  .card.fail   .val { color: #e74c3c; }
+  .card.total  .val { color: #2c3e50; }
+  .card.time   .val { color: #8e44ad; }
+  .card.normal .val { color: #2980b9; }
+  .card.abnorm .val { color: #e67e22; }
+  .card label { display: block; color: #777; font-size: 0.82em; margin-top: 4px; }
+  section { background: white; border-radius: 8px; padding: 24px; margin-bottom: 24px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+  h2 { color: #2c3e50; margin-top: 0; border-bottom: 2px solid #ecf0f1; padding-bottom: 10px; font-size: 1.15em; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.875em; }
+  th { background: #2c3e50; color: white; padding: 10px 12px; text-align: left; white-space: nowrap; }
+  td { padding: 8px 12px; border-bottom: 1px solid #ecf0f1; vertical-align: top; }
+  tr:hover td { background: #f0f4f8; }
+  code { background: #eef; padding: 1px 5px; border-radius: 3px; font-size: 0.88em; }
+  .badge-pass    { background:#27ae60; color:white; padding:2px 10px; border-radius:12px; font-size:0.82em; font-weight:bold; }
+  .badge-fail    { background:#e74c3c; color:white; padding:2px 10px; border-radius:12px; font-size:0.82em; font-weight:bold; }
+  .badge-normal  { background:#2980b9; color:white; padding:2px 10px; border-radius:12px; font-size:0.82em; font-weight:bold; display:inline-block; }
+  .badge-abnormal{ background:#e67e22; color:white; padding:2px 10px; border-radius:12px; font-size:0.82em; font-weight:bold; display:inline-block; }
+  nav ul { list-style: none; padding: 0; column-count: 2; column-gap: 16px; }
+  nav li { margin: 4px 0; }
+  nav a { color: #2980b9; text-decoration: none; }
+  nav a:hover { text-decoration: underline; }
+  small { font-size: 0.82em; }
+</style>
+</head>
+<body>
+<header>
+  <h1>OdaiBotAPI ユニットテスト エビデンス レポート</h1>
+  <p>生成日時: 2026-05-09 16:33:16 &nbsp;|&nbsp; テスト実行タイムスタンプ: 2026-05-09T16:32:37.742293+09:00</p>
+</header>
+<div class="container">
+
+<div class="summary-grid">
+  <div class="card total"><div class="val">240</div><label>総テスト数</label></div>
+  <div class="card pass"><div class="val">240</div><label>成功</label></div>
+  <div class="card fail"><div class="val">0</div><label>失敗</label></div>
+  <div class="card time"><div class="val">4.5s</div><label>実行時間</label></div>
+  <div class="card normal"><div class="val">124</div><label>正常系</label></div>
+  <div class="card abnorm"><div class="val">116</div><label>異常系</label></div>
+</div>
+
+<section>
+  <h2>目次</h2>
+  <nav><ul><li><a href="#test_auth">test_auth <small>— 認証 API（ギルド）</small></a></li>
+<li><a href="#test_auth_global">test_auth_global <small>— 認証 API（グローバル）</small></a></li>
+<li><a href="#test_auth_users">test_auth_users <small>— ユーザー管理 API</small></a></li>
+<li><a href="#test_deps">test_deps <small>— 共通依存関数</small></a></li>
+<li><a href="#test_odai">test_odai <small>— お題 API（基本）</small></a></li>
+<li><a href="#test_odai_extra">test_odai_extra <small>— お題 API（追加）</small></a></li>
+<li><a href="#test_plan_gates">test_plan_gates <small>— プランゲート統合テスト</small></a></li>
+<li><a href="#test_plan_schedule">test_plan_schedule <small>— Free プランスケジュール</small></a></li>
+<li><a href="#test_rate_limit">test_rate_limit <small>— レートリミッター</small></a></li>
+<li><a href="#test_schedules">test_schedules <small>— 通常スケジュール API</small></a></li>
+<li><a href="#test_settings">test_settings <small>— Guild 設定 API（基本）</small></a></li>
+<li><a href="#test_settings_extra">test_settings_extra <small>— Guild 設定 API（追加）</small></a></li>
+<li><a href="#test_stripe">test_stripe <small>— Stripe 決済 API</small></a></li>
+<li><a href="#test_summary">test_summary <small>— ダッシュボードサマリー</small></a></li>
+<li><a href="#test_tags">test_tags <small>— タグ API（基本）</small></a></li>
+<li><a href="#test_tags_extra">test_tags_extra <small>— タグ API（追加）</small></a></li>
+<li><a href="#test_test_post">test_test_post <small>— テスト投稿 API</small></a></li>
+</ul></nav>
+</section>
+
+<section>
+  <h2>ファイル別サマリー</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>ファイル名</th>
+        <th>対象機能</th>
+        <th>対象エンドポイント</th>
+        <th>件数</th>
+        <th>成功</th>
+        <th>失敗</th>
+        <th>正常系</th>
+        <th>異常系</th>
+      </tr>
+    </thead>
+    <tbody>
+<tr><td><a href='#test_auth'><code>test_auth</code></a></td><td>認証 API（ギルド）</td><td style='font-size:0.82em'>POST /auth/login, /register, /invite, /invite/create; PUT|DELETE /users/{id}; GET /users</td><td style='text-align:center'>20</td><td style='text-align:center;color:#27ae60;font-weight:bold'>20</td><td style='text-align:center'>0</td><td style='text-align:center'><span class='badge-normal'>7</span></td><td style='text-align:center'><span class='badge-abnormal'>13</span></td></tr>
+<tr><td><a href='#test_auth_global'><code>test_auth_global</code></a></td><td>認証 API（グローバル）</td><td style='font-size:0.82em'>POST /api/auth/login; GET /api/auth/guilds</td><td style='text-align:center'>9</td><td style='text-align:center;color:#27ae60;font-weight:bold'>9</td><td style='text-align:center'>0</td><td style='text-align:center'><span class='badge-normal'>4</span></td><td style='text-align:center'><span class='badge-abnormal'>5</span></td></tr>
+<tr><td><a href='#test_auth_users'><code>test_auth_users</code></a></td><td>ユーザー管理 API</td><td style='font-size:0.82em'>POST /auth/reset-password, /users/{id}/ban, /unban, /unlock; GET|DELETE /bans; GET|DELETE /invites; GET /users/{id}/profile</td><td style='text-align:center'>39</td><td style='text-align:center;color:#27ae60;font-weight:bold'>39</td><td style='text-align:center'>0</td><td style='text-align:center'><span class='badge-normal'>16</span></td><td style='text-align:center'><span class='badge-abnormal'>23</span></td></tr>
+<tr><td><a href='#test_deps'><code>test_deps</code></a></td><td>共通依存関数</td><td style='font-size:0.82em'>hash_password / verify_password / normalize_tags / get_guild_plan / require_pro_plan / require_dashboard_plan / check_odai_capacity</td><td style='text-align:center'>29</td><td style='text-align:center;color:#27ae60;font-weight:bold'>29</td><td style='text-align:center'>0</td><td style='text-align:center'><span class='badge-normal'>20</span></td><td style='text-align:center'><span class='badge-abnormal'>9</span></td></tr>
+<tr><td><a href='#test_odai'><code>test_odai</code></a></td><td>お題 API（基本）</td><td style='font-size:0.82em'>GET /odai; POST /odai; PUT /odai/{id}; DELETE /odai/{id}</td><td style='text-align:center'>13</td><td style='text-align:center;color:#27ae60;font-weight:bold'>13</td><td style='text-align:center'>0</td><td style='text-align:center'><span class='badge-normal'>6</span></td><td style='text-align:center'><span class='badge-abnormal'>7</span></td></tr>
+<tr><td><a href='#test_odai_extra'><code>test_odai_extra</code></a></td><td>お題 API（追加）</td><td style='font-size:0.82em'>GET /odai/{id}/history; GET /odai/{id}/usage; GET /odai/{id}/image; POST /odai/import; PUT /odai/{id}（エッジケース）</td><td style='text-align:center'>29</td><td style='text-align:center;color:#27ae60;font-weight:bold'>29</td><td style='text-align:center'>0</td><td style='text-align:center'><span class='badge-normal'>16</span></td><td style='text-align:center'><span class='badge-abnormal'>13</span></td></tr>
+<tr><td><a href='#test_plan_gates'><code>test_plan_gates</code></a></td><td>プランゲート統合テスト</td><td style='font-size:0.82em'>require_pro_plan / require_dashboard_plan の実際の HTTP 挙動</td><td style='text-align:center'>17</td><td style='text-align:center;color:#27ae60;font-weight:bold'>17</td><td style='text-align:center'>0</td><td style='text-align:center'><span class='badge-normal'>8</span></td><td style='text-align:center'><span class='badge-abnormal'>9</span></td></tr>
+<tr><td><a href='#test_plan_schedule'><code>test_plan_schedule</code></a></td><td>Free プランスケジュール</td><td style='font-size:0.82em'>GET|PUT|DELETE /plan-schedule</td><td style='text-align:center'>12</td><td style='text-align:center;color:#27ae60;font-weight:bold'>12</td><td style='text-align:center'>0</td><td style='text-align:center'><span class='badge-normal'>6</span></td><td style='text-align:center'><span class='badge-abnormal'>6</span></td></tr>
+<tr><td><a href='#test_rate_limit'><code>test_rate_limit</code></a></td><td>レートリミッター</td><td style='font-size:0.82em'>POST /auth/login（10回/分）、POST /auth/reset-password（5回/分）</td><td style='text-align:center'>2</td><td style='text-align:center;color:#27ae60;font-weight:bold'>2</td><td style='text-align:center'>0</td><td style='text-align:center'><span class='badge-normal'>0</span></td><td style='text-align:center'><span class='badge-abnormal'>2</span></td></tr>
+<tr><td><a href='#test_schedules'><code>test_schedules</code></a></td><td>通常スケジュール API</td><td style='font-size:0.82em'>GET /schedules; POST /schedules; PUT /schedules/{id}; DELETE /schedules/{id}</td><td style='text-align:center'>11</td><td style='text-align:center;color:#27ae60;font-weight:bold'>11</td><td style='text-align:center'>0</td><td style='text-align:center'><span class='badge-normal'>5</span></td><td style='text-align:center'><span class='badge-abnormal'>6</span></td></tr>
+<tr><td><a href='#test_settings'><code>test_settings</code></a></td><td>Guild 設定 API（基本）</td><td style='font-size:0.82em'>GET|PUT /settings</td><td style='text-align:center'>8</td><td style='text-align:center;color:#27ae60;font-weight:bold'>8</td><td style='text-align:center'>0</td><td style='text-align:center'><span class='badge-normal'>6</span></td><td style='text-align:center'><span class='badge-abnormal'>2</span></td></tr>
+<tr><td><a href='#test_settings_extra'><code>test_settings_extra</code></a></td><td>Guild 設定 API（追加）</td><td style='font-size:0.82em'>GET /settings/name; GET /settings/channels</td><td style='text-align:center'>7</td><td style='text-align:center;color:#27ae60;font-weight:bold'>7</td><td style='text-align:center'>0</td><td style='text-align:center'><span class='badge-normal'>6</span></td><td style='text-align:center'><span class='badge-abnormal'>1</span></td></tr>
+<tr><td><a href='#test_stripe'><code>test_stripe</code></a></td><td>Stripe 決済 API</td><td style='font-size:0.82em'>GET /stripe/plan; POST /stripe/webhook; POST /stripe/checkout; POST /stripe/expand</td><td style='text-align:center'>20</td><td style='text-align:center;color:#27ae60;font-weight:bold'>20</td><td style='text-align:center'>0</td><td style='text-align:center'><span class='badge-normal'>11</span></td><td style='text-align:center'><span class='badge-abnormal'>9</span></td></tr>
+<tr><td><a href='#test_summary'><code>test_summary</code></a></td><td>ダッシュボードサマリー</td><td style='font-size:0.82em'>GET /dashboard-summary</td><td style='text-align:center'>3</td><td style='text-align:center;color:#27ae60;font-weight:bold'>3</td><td style='text-align:center'>0</td><td style='text-align:center'><span class='badge-normal'>2</span></td><td style='text-align:center'><span class='badge-abnormal'>1</span></td></tr>
+<tr><td><a href='#test_tags'><code>test_tags</code></a></td><td>タグ API（基本）</td><td style='font-size:0.82em'>GET /tags; POST /tags; PUT /tags/{id}; DELETE /tags/{id}</td><td style='text-align:center'>11</td><td style='text-align:center;color:#27ae60;font-weight:bold'>11</td><td style='text-align:center'>0</td><td style='text-align:center'><span class='badge-normal'>5</span></td><td style='text-align:center'><span class='badge-abnormal'>6</span></td></tr>
+<tr><td><a href='#test_tags_extra'><code>test_tags_extra</code></a></td><td>タグ API（追加）</td><td style='font-size:0.82em'>GET /tags/{id}/detail</td><td style='text-align:center'>5</td><td style='text-align:center;color:#27ae60;font-weight:bold'>5</td><td style='text-align:center'>0</td><td style='text-align:center'><span class='badge-normal'>3</span></td><td style='text-align:center'><span class='badge-abnormal'>2</span></td></tr>
+<tr><td><a href='#test_test_post'><code>test_test_post</code></a></td><td>テスト投稿 API</td><td style='font-size:0.82em'>POST /test-post</td><td style='text-align:center'>5</td><td style='text-align:center;color:#27ae60;font-weight:bold'>5</td><td style='text-align:center'>0</td><td style='text-align:center'><span class='badge-normal'>3</span></td><td style='text-align:center'><span class='badge-abnormal'>2</span></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<h2 style="margin-top:32px">テストケース詳細</h2>
+
+<section id="test_auth">
+  <h2>test_auth <small style="font-weight:normal;color:#555">— 認証 API（ギルド）</small></h2>
+  <p style="color:#555;font-size:0.9em">POST /auth/login, /register, /invite, /invite/create; PUT|DELETE /users/{id}; GET /users</p>
+  <p>
+    <strong>テスト数：</strong>20 &nbsp;|&nbsp;
+    <strong style="color:#27ae60">成功：20</strong> &nbsp;|&nbsp;
+    <strong style="color:#e74c3c">失敗：0</strong> &nbsp;|&nbsp;
+    <span class="badge-normal">正常系：7</span> &nbsp;
+    <span class="badge-abnormal">異常系：13</span>
+  </p>
+  <table>
+    <thead>
+      <tr>
+        <th>テストクラス</th>
+        <th>テスト名</th>
+        <th>種別</th>
+        <th>想定ケース</th>
+        <th>想定結果</th>
+        <th>結果</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td><code>TestLogin</code></td><td><code>test_success</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>正しいユーザー名・パスワードでログイン</td><td>200 OK：JWT トークン・ロール返却</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestLogin</code></td><td><code>test_wrong_password_returns_401</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>誤ったパスワードでログイン</td><td>401 Unauthorized</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestLogin</code></td><td><code>test_user_not_found_returns_401</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>存在しないユーザーでログイン</td><td>401 Unauthorized</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestRegister</code></td><td><code>test_success</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>有効な招待トークンで新規登録</td><td>200 OK：api_token 返却</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestRegister</code></td><td><code>test_short_password_returns_400</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>8 文字未満のパスワードで登録</td><td>400 Bad Request</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestRegister</code></td><td><code>test_invalid_token_returns_404</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>無効な招待トークンで登録</td><td>404 Not Found</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestRegister</code></td><td><code>test_duplicate_username_returns_409</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>既存ユーザー名で登録</td><td>409 Conflict</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestCreateInvite</code></td><td><code>test_success</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>管理者が招待リンクを作成</td><td>200 OK：invite_token 返却</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestCreateInvite</code></td><td><code>test_invalid_role_returns_400</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>無効なロール指定で招待作成</td><td>400 Bad Request</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestCreateInvite</code></td><td><code>test_duplicate_username_returns_409</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>既存ユーザー名で招待作成</td><td>409 Conflict</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestListUsers</code></td><td><code>test_success</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>管理者がユーザー一覧取得</td><td>200 OK：ユーザーリスト返却</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestCreateUser</code></td><td><code>test_success_first_user</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>最初のユーザーを管理者として作成</td><td>200 OK：api_token 返却</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestCreateUser</code></td><td><code>test_short_password_returns_400</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>8 文字未満のパスワードでユーザー作成</td><td>400 Bad Request</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestCreateUser</code></td><td><code>test_duplicate_username_returns_409</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>既存ユーザー名でユーザー作成</td><td>409 Conflict</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestUpdateUser</code></td><td><code>test_success</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>管理者がユーザー情報を更新</td><td>200 OK</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestUpdateUser</code></td><td><code>test_not_found_returns_404</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>存在しないユーザーを更新</td><td>404 Not Found</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestUpdateUser</code></td><td><code>test_no_update_fields_returns_400</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>更新フィールド未指定で更新リクエスト</td><td>400 Bad Request</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestDeleteUser</code></td><td><code>test_success</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>管理者がユーザーを削除</td><td>200 OK</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestDeleteUser</code></td><td><code>test_self_delete_returns_400</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>自分自身を削除しようとする</td><td>400 Bad Request</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestDeleteUser</code></td><td><code>test_not_found_returns_404</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>存在しないユーザーを削除</td><td>404 Not Found</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="test_auth_global">
+  <h2>test_auth_global <small style="font-weight:normal;color:#555">— 認証 API（グローバル）</small></h2>
+  <p style="color:#555;font-size:0.9em">POST /api/auth/login; GET /api/auth/guilds</p>
+  <p>
+    <strong>テスト数：</strong>9 &nbsp;|&nbsp;
+    <strong style="color:#27ae60">成功：9</strong> &nbsp;|&nbsp;
+    <strong style="color:#e74c3c">失敗：0</strong> &nbsp;|&nbsp;
+    <span class="badge-normal">正常系：4</span> &nbsp;
+    <span class="badge-abnormal">異常系：5</span>
+  </p>
+  <table>
+    <thead>
+      <tr>
+        <th>テストクラス</th>
+        <th>テスト名</th>
+        <th>種別</th>
+        <th>想定ケース</th>
+        <th>想定結果</th>
+        <th>結果</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td><code>TestGlobalLogin</code></td><td><code>test_success</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>グローバルエンドポイントで正しい認証情報でログイン</td><td>200 OK：JWT トークン・所属ギルド返却</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestGlobalLogin</code></td><td><code>test_wrong_password_returns_401</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>グローバルログインで誤ったパスワード</td><td>401 Unauthorized</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestGlobalLogin</code></td><td><code>test_user_not_found_returns_401</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>グローバルログインで存在しないユーザー</td><td>401 Unauthorized</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestGlobalLogin</code></td><td><code>test_no_guilds_returns_403</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>どのギルドにも所属しないユーザーでログイン</td><td>403 Forbidden</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestGlobalLogin</code></td><td><code>test_display_name_in_response</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>display_name が設定されているユーザーでログイン</td><td>200 OK：display_name フィールド含む</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestListGuilds</code></td><td><code>test_success</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>有効なトークンでギルド一覧取得</td><td>200 OK：ギルドリスト返却</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestListGuilds</code></td><td><code>test_no_token_returns_401</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>トークンなしでギルド一覧取得</td><td>401 Unauthorized</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestListGuilds</code></td><td><code>test_invalid_token_returns_401</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>無効なトークンでギルド一覧取得</td><td>401 Unauthorized</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestListGuilds</code></td><td><code>test_multiple_guilds</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>複数ギルドに所属するユーザーのギルド一覧</td><td>200 OK：複数ギルド返却</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="test_auth_users">
+  <h2>test_auth_users <small style="font-weight:normal;color:#555">— ユーザー管理 API</small></h2>
+  <p style="color:#555;font-size:0.9em">POST /auth/reset-password, /users/{id}/ban, /unban, /unlock; GET|DELETE /bans; GET|DELETE /invites; GET /users/{id}/profile</p>
+  <p>
+    <strong>テスト数：</strong>39 &nbsp;|&nbsp;
+    <strong style="color:#27ae60">成功：39</strong> &nbsp;|&nbsp;
+    <strong style="color:#e74c3c">失敗：0</strong> &nbsp;|&nbsp;
+    <span class="badge-normal">正常系：16</span> &nbsp;
+    <span class="badge-abnormal">異常系：23</span>
+  </p>
+  <table>
+    <thead>
+      <tr>
+        <th>テストクラス</th>
+        <th>テスト名</th>
+        <th>種別</th>
+        <th>想定ケース</th>
+        <th>想定結果</th>
+        <th>結果</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td><code>TestResetPassword</code></td><td><code>test_success</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>有効なリセットトークンで新しいパスワードを設定</td><td>200 OK</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestResetPassword</code></td><td><code>test_invalid_token_returns_404</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>無効なリセットトークンでパスワードリセット</td><td>404 Not Found</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestResetPassword</code></td><td><code>test_user_not_found_returns_404</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>トークンに紐づくユーザーが存在しない</td><td>404 Not Found</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestResetPassword</code></td><td><code>test_short_password_returns_400</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>8 文字未満の新しいパスワードで設定</td><td>400 Bad Request</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestGetInviteInfo</code></td><td><code>test_success</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>有効な招待トークンで招待情報を取得</td><td>200 OK：username / guild_name 返却</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestGetInviteInfo</code></td><td><code>test_invalid_token_returns_404</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>無効な招待トークンで招待情報取得</td><td>404 Not Found</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestListBans</code></td><td><code>test_success</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>管理者が BAN リストを取得</td><td>200 OK：BAN ユーザーリスト返却</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestListBans</code></td><td><code>test_empty_list</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>BAN されているユーザーが 0 名の場合</td><td>200 OK：空リスト返却</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestListBans</code></td><td><code>test_unauthenticated_returns_401</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>未認証で BAN リスト取得</td><td>401 Unauthorized</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestListBans</code></td><td><code>test_non_admin_returns_403</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>一般ユーザーが BAN リスト取得</td><td>403 Forbidden</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestRemoveBan</code></td><td><code>test_success</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>管理者が BAN を解除</td><td>200 OK</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestRemoveBan</code></td><td><code>test_not_found_returns_404</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>存在しない BAN エントリを解除</td><td>404 Not Found</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestRemoveBan</code></td><td><code>test_non_admin_returns_403</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>一般ユーザーが BAN 解除</td><td>403 Forbidden</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestListInvites</code></td><td><code>test_success</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>管理者が招待リスト取得</td><td>200 OK：招待リスト返却</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestListInvites</code></td><td><code>test_empty_list</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>招待が 0 件の場合</td><td>200 OK：空リスト返却</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestListInvites</code></td><td><code>test_non_admin_returns_403</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>一般ユーザーが招待リスト取得</td><td>403 Forbidden</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestRevokeInvite</code></td><td><code>test_success</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>管理者が招待を失効させる</td><td>200 OK</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestRevokeInvite</code></td><td><code>test_not_found_returns_404</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>存在しない招待を失効</td><td>404 Not Found</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestRevokeInvite</code></td><td><code>test_non_admin_returns_403</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>一般ユーザーが招待失効</td><td>403 Forbidden</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestUnlockUser</code></td><td><code>test_success</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>管理者がロックされたユーザーを解錠</td><td>200 OK</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestUnlockUser</code></td><td><code>test_not_found_returns_404</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>存在しないユーザーを解錠</td><td>404 Not Found</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestUnlockUser</code></td><td><code>test_non_admin_returns_403</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>一般ユーザーが解錠リクエスト</td><td>403 Forbidden</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestBanUser</code></td><td><code>test_success</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>管理者が対象ユーザーを BAN</td><td>200 OK</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestBanUser</code></td><td><code>test_self_ban_returns_400</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>管理者が自分自身を BAN</td><td>400 Bad Request</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestBanUser</code></td><td><code>test_user_not_found_returns_404</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>存在しないユーザーを BAN</td><td>404 Not Found</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestBanUser</code></td><td><code>test_non_admin_returns_403</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>一般ユーザーが BAN リクエスト</td><td>403 Forbidden</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestUnbanUser</code></td><td><code>test_success</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>管理者が BAN ユーザーを解除</td><td>200 OK</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestUnbanUser</code></td><td><code>test_user_not_found_returns_404</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>存在しないユーザーの BAN 解除</td><td>404 Not Found</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestUnbanUser</code></td><td><code>test_non_admin_returns_403</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>一般ユーザーが BAN 解除リクエスト</td><td>403 Forbidden</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestGetUserProfile</code></td><td><code>test_admin_can_view_any_profile</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>管理者が他ユーザーのプロフィールを取得</td><td>200 OK：プロフィール返却</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestGetUserProfile</code></td><td><code>test_user_can_view_own_profile</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>一般ユーザーが自分のプロフィールを取得</td><td>200 OK：プロフィール返却</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestGetUserProfile</code></td><td><code>test_user_cannot_view_others_profile</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>一般ユーザーが他ユーザーのプロフィールを取得</td><td>403 Forbidden</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestGetUserProfile</code></td><td><code>test_not_found_returns_404</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>存在しないユーザーのプロフィールを取得</td><td>404 Not Found</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestGetUserProfile</code></td><td><code>test_profile_includes_odai_and_tags</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>プロフィールにお題・タグ一覧が含まれること</td><td>200 OK：odai / tags フィールド含む</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestListUsersNonAdmin</code></td><td><code>test_non_admin_sees_only_own_data</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>一般ユーザーがユーザー一覧を取得</td><td>200 OK：自分のデータのみ返却</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestUpdateUserExtra</code></td><td><code>test_non_admin_cannot_update_other_user</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>一般ユーザーが他ユーザーを更新</td><td>403 Forbidden</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestUpdateUserExtra</code></td><td><code>test_wrong_current_password_returns_401</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>誤った現パスワードでパスワード変更</td><td>401 Unauthorized</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestUpdateUserExtra</code></td><td><code>test_missing_current_password_returns_400</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>現パスワード未指定でパスワード変更</td><td>400 Bad Request</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestUpdateUserExtra</code></td><td><code>test_admin_can_change_role</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>管理者が一般ユーザーのロールを変更</td><td>200 OK</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="test_deps">
+  <h2>test_deps <small style="font-weight:normal;color:#555">— 共通依存関数</small></h2>
+  <p style="color:#555;font-size:0.9em">hash_password / verify_password / normalize_tags / get_guild_plan / require_pro_plan / require_dashboard_plan / check_odai_capacity</p>
+  <p>
+    <strong>テスト数：</strong>29 &nbsp;|&nbsp;
+    <strong style="color:#27ae60">成功：29</strong> &nbsp;|&nbsp;
+    <strong style="color:#e74c3c">失敗：0</strong> &nbsp;|&nbsp;
+    <span class="badge-normal">正常系：20</span> &nbsp;
+    <span class="badge-abnormal">異常系：9</span>
+  </p>
+  <table>
+    <thead>
+      <tr>
+        <th>テストクラス</th>
+        <th>テスト名</th>
+        <th>種別</th>
+        <th>想定ケース</th>
+        <th>想定結果</th>
+        <th>結果</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td><code>TestHashPassword</code></td><td><code>test_returns_salt_and_digest</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>パスワードをハッシュ化しソルト+ダイジェスト形式で返却</td><td>ソルト:ダイジェスト 形式の文字列</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestHashPassword</code></td><td><code>test_same_password_different_salts</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>同じパスワードを 2 回ハッシュ化</td><td>毎回異なるハッシュ値（ランダムソルト）</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestHashPassword</code></td><td><code>test_different_passwords_different_hashes</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>異なるパスワードをハッシュ化</td><td>異なるハッシュ値</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestVerifyPassword</code></td><td><code>test_correct_password</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>正しいパスワードで検証</td><td>True 返却</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestVerifyPassword</code></td><td><code>test_wrong_password</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>誤ったパスワードで検証</td><td>False 返却</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestVerifyPassword</code></td><td><code>test_malformed_hash_returns_false</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>不正フォーマットのハッシュで検証</td><td>False 返却（例外なし）</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestVerifyPassword</code></td><td><code>test_empty_password</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>空文字のパスワードで検証</td><td>False 返却</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestNormalizeTags</code></td><td><code>test_none_returns_empty_list</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>None を渡す</td><td>空リスト返却</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestNormalizeTags</code></td><td><code>test_comma_separated_string</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>カンマ区切り文字列を渡す</td><td>分割されたタグリスト返却</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestNormalizeTags</code></td><td><code>test_string_with_spaces</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>スペース入りタグ文字列を渡す</td><td>トリム済みタグリスト返却</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestNormalizeTags</code></td><td><code>test_list_input</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>リストを渡す</td><td>そのままリスト返却</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestNormalizeTags</code></td><td><code>test_list_with_empty_strings</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>空文字を含むリストを渡す</td><td>空文字除去済みリスト返却</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestNormalizeTags</code></td><td><code>test_empty_string</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>空文字列を渡す</td><td>空リスト返却</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestNormalizeTags</code></td><td><code>test_single_tag</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>単一タグ文字列を渡す</td><td>要素 1 件のリスト返却</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestGetGuildPlan</code></td><td><code>test_returns_plan_when_record_exists</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>プランレコードが存在する場合</td><td>DB のプランレコード返却</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestGetGuildPlan</code></td><td><code>test_falls_back_to_free_when_no_record</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>ギルドのプランレコードがない場合</td><td>free プランのデフォルト値返却</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestGetGuildPlan</code></td><td><code>test_falls_back_to_empty_dict_when_plans_table_empty</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>plans テーブルが空の場合</td><td>空辞書にフォールバック</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestRequireDashboardPlan</code></td><td><code>test_free_plan_raises_403</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>free プランで dashboard_plan 要求</td><td>403 Forbidden（HTTPException）</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestRequireDashboardPlan</code></td><td><code>test_light_plan_passes</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>light プランで dashboard_plan 要求</td><td>通過（例外なし）</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestRequireDashboardPlan</code></td><td><code>test_pro_plan_passes</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>pro プランで dashboard_plan 要求</td><td>通過（例外なし）</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestRequireProPlan</code></td><td><code>test_free_raises_403</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>free プランで pro_plan 要求</td><td>403 Forbidden（HTTPException）</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestRequireProPlan</code></td><td><code>test_light_raises_403</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>light プランで pro_plan 要求</td><td>403 Forbidden（HTTPException）</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestRequireProPlan</code></td><td><code>test_pro_passes</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>pro プランで pro_plan 要求</td><td>通過（例外なし）</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestRequireProPlan</code></td><td><code>test_enterprise_passes</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>enterprise プランで pro_plan 要求</td><td>通過（例外なし）</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestCheckOdaiCapacity</code></td><td><code>test_null_capacity_is_unlimited</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>custom_odai_capacity=None の場合</td><td>上限なし（通過）</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestCheckOdaiCapacity</code></td><td><code>test_zero_capacity_raises_403</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>容量 0 のギルドで登録</td><td>403 Forbidden</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestCheckOdaiCapacity</code></td><td><code>test_under_capacity_passes</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>現在件数が上限未満</td><td>通過（例外なし）</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestCheckOdaiCapacity</code></td><td><code>test_at_capacity_raises_403</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>現在件数が上限と同数</td><td>403 Forbidden</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestCheckOdaiCapacity</code></td><td><code>test_bulk_import_exceeding_capacity_raises_403</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>一括インポートで上限超過</td><td>403 Forbidden</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="test_odai">
+  <h2>test_odai <small style="font-weight:normal;color:#555">— お題 API（基本）</small></h2>
+  <p style="color:#555;font-size:0.9em">GET /odai; POST /odai; PUT /odai/{id}; DELETE /odai/{id}</p>
+  <p>
+    <strong>テスト数：</strong>13 &nbsp;|&nbsp;
+    <strong style="color:#27ae60">成功：13</strong> &nbsp;|&nbsp;
+    <strong style="color:#e74c3c">失敗：0</strong> &nbsp;|&nbsp;
+    <span class="badge-normal">正常系：6</span> &nbsp;
+    <span class="badge-abnormal">異常系：7</span>
+  </p>
+  <table>
+    <thead>
+      <tr>
+        <th>テストクラス</th>
+        <th>テスト名</th>
+        <th>種別</th>
+        <th>想定ケース</th>
+        <th>想定結果</th>
+        <th>結果</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td><code>TestListOdai</code></td><td><code>test_success</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>お題一覧を取得</td><td>200 OK：お題リスト返却</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestListOdai</code></td><td><code>test_filter_by_tag</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>タグ指定でお題一覧をフィルタ</td><td>200 OK：タグ絞り込み結果返却</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestListOdai</code></td><td><code>test_filter_by_favorite</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>お気に入り指定でお題一覧をフィルタ</td><td>200 OK：お気に入り絞り込み結果返却</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestListOdai</code></td><td><code>test_unauthenticated_returns_401</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>未認証でお題一覧取得</td><td>401 Unauthorized</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestUploadOdai</code></td><td><code>test_success</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>有効な画像ファイルをアップロード</td><td>201 Created：お題データ返却</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestUploadOdai</code></td><td><code>test_invalid_content_type_returns_400</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>画像以外のファイルをアップロード</td><td>400 Bad Request</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestUploadOdai</code></td><td><code>test_file_too_large_returns_400</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>上限サイズを超えるファイルをアップロード</td><td>400 Bad Request</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestUploadOdai</code></td><td><code>test_duplicate_returns_409</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>同名ファイルを再アップロード</td><td>409 Conflict</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestUpdateOdai</code></td><td><code>test_success</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>お題のメモ・タグ等を更新</td><td>200 OK：更新後のお題データ返却</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestUpdateOdai</code></td><td><code>test_not_found_returns_404</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>存在しないお題を更新</td><td>404 Not Found</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestDeleteOdai</code></td><td><code>test_success</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>お題を削除</td><td>200 OK</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestDeleteOdai</code></td><td><code>test_not_found_returns_404</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>存在しないお題を削除</td><td>404 Not Found</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestDeleteOdai</code></td><td><code>test_non_admin_returns_403</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>一般ユーザーがお題を削除</td><td>403 Forbidden</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="test_odai_extra">
+  <h2>test_odai_extra <small style="font-weight:normal;color:#555">— お題 API（追加）</small></h2>
+  <p style="color:#555;font-size:0.9em">GET /odai/{id}/history; GET /odai/{id}/usage; GET /odai/{id}/image; POST /odai/import; PUT /odai/{id}（エッジケース）</p>
+  <p>
+    <strong>テスト数：</strong>29 &nbsp;|&nbsp;
+    <strong style="color:#27ae60">成功：29</strong> &nbsp;|&nbsp;
+    <strong style="color:#e74c3c">失敗：0</strong> &nbsp;|&nbsp;
+    <span class="badge-normal">正常系：16</span> &nbsp;
+    <span class="badge-abnormal">異常系：13</span>
+  </p>
+  <table>
+    <thead>
+      <tr>
+        <th>テストクラス</th>
+        <th>テスト名</th>
+        <th>種別</th>
+        <th>想定ケース</th>
+        <th>想定結果</th>
+        <th>結果</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td><code>TestGetOdaiHistory</code></td><td><code>test_success</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>お題の操作履歴を取得</td><td>200 OK：履歴リスト・ページング情報返却</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestGetOdaiHistory</code></td><td><code>test_not_found_returns_404</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>存在しないお題の履歴を取得</td><td>404 Not Found</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestGetOdaiHistory</code></td><td><code>test_pagination_params</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>page=2, per_page=10 で履歴取得</td><td>200 OK：指定ページ・件数で返却</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestGetOdaiHistory</code></td><td><code>test_per_page_clamped_to_50</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>per_page=100 で履歴取得</td><td>200 OK：per_page は 50 にクランプ</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestGetOdaiHistory</code></td><td><code>test_unauthenticated_returns_401</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>未認証で履歴取得</td><td>401 Unauthorized</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestGetOdaiUsage</code></td><td><code>test_success</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>お題の使用状況（チャンネル・日時）を取得</td><td>200 OK：使用履歴リスト返却</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestGetOdaiUsage</code></td><td><code>test_channel_id_is_string</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>DB から整数型の channel_id が返る場合</td><td>レスポンスの channel_id が文字列型</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestGetOdaiUsage</code></td><td><code>test_not_found_returns_404</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>存在しないお題の使用状況取得</td><td>404 Not Found</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestGetOdaiUsage</code></td><td><code>test_empty_usage</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>使用履歴が 0 件のお題</td><td>200 OK：空リスト返却</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestGetOdaiUsage</code></td><td><code>test_unauthenticated_returns_401</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>未認証で使用状況取得</td><td>401 Unauthorized</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestGetOdaiImage</code></td><td><code>test_not_found_odai_returns_404</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>存在しないお題の画像を取得</td><td>404 Not Found</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestGetOdaiImage</code></td><td><code>test_no_storage_path_returns_404</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>storage_path が NULL のお題の画像取得</td><td>404 Not Found</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestGetOdaiImage</code></td><td><code>test_file_not_on_disk_returns_404</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>DB に storage_path あるがファイルが存在しない</td><td>404 Not Found</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestGetOdaiImage</code></td><td><code>test_success_jpeg</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>JPEG ファイルの画像取得</td><td>200 OK：Content-Type: image/jpeg</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestGetOdaiImage</code></td><td><code>test_success_png</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>PNG ファイルの画像取得</td><td>200 OK：Content-Type: image/png</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestGetOdaiImage</code></td><td><code>test_success_webp</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>WebP ファイルの画像取得</td><td>200 OK：Content-Type: image/webp</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestGetOdaiImage</code></td><td><code>test_unauthenticated_returns_401</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>未認証で画像取得</td><td>401 Unauthorized</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestImportOdai</code></td><td><code>test_success_single_file</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>単一ファイルの一括インポート</td><td>201 Created：success=true のレスポンス</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestImportOdai</code></td><td><code>test_duplicate_file_fails_gracefully</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>既存ファイル名を一括インポート</td><td>201 Created：success=false で継続（全体は失敗しない）</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestImportOdai</code></td><td><code>test_partial_success_multiple_files</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>複数ファイルのうち一部が重複</td><td>201 Created：成功分は true、失敗分は false</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestImportOdai</code></td><td><code>test_no_files_returns_422</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>ファイルを 1 件も送らずにインポートリクエスト</td><td>422 Unprocessable Entity（必須フィールド欠落）</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestImportOdai</code></td><td><code>test_unauthenticated_returns_401</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>未認証で一括インポート</td><td>401 Unauthorized</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestUpdateOdaiEdgeCases</code></td><td><code>test_filename_rename_conflict_returns_409</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>別お題と同名にリネーム</td><td>409 Conflict</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestUpdateOdaiEdgeCases</code></td><td><code>test_empty_filename_returns_400</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>空白のみのファイル名にリネーム</td><td>400 Bad Request</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestUpdateOdaiEdgeCases</code></td><td><code>test_memo_update</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>お題のメモを更新</td><td>200 OK：更新後のお題データ返却</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestUpdateOdaiEdgeCases</code></td><td><code>test_soft_delete</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>deleted=true でソフトデリート</td><td>200 OK：deleted_at が設定される</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestUpdateOdaiEdgeCases</code></td><td><code>test_restore_odai</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>deleted=false でソフトデリートを復元</td><td>200 OK：deleted_at が NULL にリセット</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestUpdateOdaiEdgeCases</code></td><td><code>test_tags_update</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>タグリストを新しいタグに更新</td><td>200 OK：タグが更新される</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestUpdateOdaiEdgeCases</code></td><td><code>test_filename_successful_rename</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>衝突しないファイル名にリネーム</td><td>200 OK：新しいファイル名で返却</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="test_plan_gates">
+  <h2>test_plan_gates <small style="font-weight:normal;color:#555">— プランゲート統合テスト</small></h2>
+  <p style="color:#555;font-size:0.9em">require_pro_plan / require_dashboard_plan の実際の HTTP 挙動</p>
+  <p>
+    <strong>テスト数：</strong>17 &nbsp;|&nbsp;
+    <strong style="color:#27ae60">成功：17</strong> &nbsp;|&nbsp;
+    <strong style="color:#e74c3c">失敗：0</strong> &nbsp;|&nbsp;
+    <span class="badge-normal">正常系：8</span> &nbsp;
+    <span class="badge-abnormal">異常系：9</span>
+  </p>
+  <table>
+    <thead>
+      <tr>
+        <th>テストクラス</th>
+        <th>テスト名</th>
+        <th>種別</th>
+        <th>想定ケース</th>
+        <th>想定結果</th>
+        <th>結果</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td><code>TestDashboardPlanGate</code></td><td><code>test_free_plan_login_returns_403</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>free プランのギルドでダッシュボードログイン</td><td>403 Forbidden</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestDashboardPlanGate</code></td><td><code>test_light_plan_login_succeeds</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>light プランのギルドでダッシュボードログイン</td><td>200 OK</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestDashboardPlanGate</code></td><td><code>test_pro_plan_login_succeeds</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>pro プランのギルドでダッシュボードログイン</td><td>200 OK</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestProPlanGate</code></td><td><code>test_odai_list_free_returns_403</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>free プランでお題一覧取得</td><td>403 Forbidden</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestProPlanGate</code></td><td><code>test_odai_list_light_returns_403</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>light プランでお題一覧取得</td><td>403 Forbidden</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestProPlanGate</code></td><td><code>test_odai_list_pro_passes</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>pro プランでお題一覧取得</td><td>200 OK</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestProPlanGate</code></td><td><code>test_tags_list_free_returns_403</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>free プランでタグ一覧取得</td><td>403 Forbidden</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestProPlanGate</code></td><td><code>test_tags_list_light_returns_403</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>light プランでタグ一覧取得</td><td>403 Forbidden</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestProPlanGate</code></td><td><code>test_tags_list_pro_passes</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>pro プランでタグ一覧取得</td><td>200 OK</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestProPlanGate</code></td><td><code>test_schedules_list_free_returns_403</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>free プランでスケジュール一覧取得</td><td>403 Forbidden</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestProPlanGate</code></td><td><code>test_schedules_list_light_returns_403</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>light プランでスケジュール一覧取得</td><td>403 Forbidden</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestProPlanGate</code></td><td><code>test_schedules_list_pro_passes</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>pro プランでスケジュール一覧取得</td><td>200 OK</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestProPlanGate</code></td><td><code>test_settings_put_free_returns_403</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>free プランで設定更新</td><td>403 Forbidden</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestProPlanGate</code></td><td><code>test_settings_put_light_returns_403</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>light プランで設定更新</td><td>403 Forbidden</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestProPlanGate</code></td><td><code>test_settings_put_pro_passes</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>pro プランで設定更新</td><td>200 OK</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestProPlanGate</code></td><td><code>test_settings_get_light_passes</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>light プランで設定取得（GET はゲートなし）</td><td>200 OK</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestProPlanGate</code></td><td><code>test_summary_free_passes_auth_but_plan_not_gated</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>free プランでサマリー取得（プランゲートなし）</td><td>200 OK</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="test_plan_schedule">
+  <h2>test_plan_schedule <small style="font-weight:normal;color:#555">— Free プランスケジュール</small></h2>
+  <p style="color:#555;font-size:0.9em">GET|PUT|DELETE /plan-schedule</p>
+  <p>
+    <strong>テスト数：</strong>12 &nbsp;|&nbsp;
+    <strong style="color:#27ae60">成功：12</strong> &nbsp;|&nbsp;
+    <strong style="color:#e74c3c">失敗：0</strong> &nbsp;|&nbsp;
+    <span class="badge-normal">正常系：6</span> &nbsp;
+    <span class="badge-abnormal">異常系：6</span>
+  </p>
+  <table>
+    <thead>
+      <tr>
+        <th>テストクラス</th>
+        <th>テスト名</th>
+        <th>種別</th>
+        <th>想定ケース</th>
+        <th>想定結果</th>
+        <th>結果</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td><code>TestGetPlanSchedule</code></td><td><code>test_returns_schedule_when_exists</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>スケジュールが存在する場合に取得</td><td>200 OK：スケジュール返却</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestGetPlanSchedule</code></td><td><code>test_returns_null_when_no_schedule</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>スケジュールが未設定の場合に取得</td><td>200 OK：data=null 返却</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestGetPlanSchedule</code></td><td><code>test_unauthenticated_returns_401</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>未認証でプランスケジュール取得</td><td>401 Unauthorized</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestSetPlanSchedule</code></td><td><code>test_creates_schedule_when_none_exists</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>スケジュール未設定時に新規作成</td><td>200 OK：新規スケジュール返却</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestSetPlanSchedule</code></td><td><code>test_updates_existing_schedule</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>既存スケジュールを更新</td><td>200 OK：更新後のスケジュール返却</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestSetPlanSchedule</code></td><td><code>test_non_pro_cannot_create_second_schedule</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>非 pro プランで 2 件目のスケジュール作成</td><td>403 Forbidden</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestSetPlanSchedule</code></td><td><code>test_free_plan_can_create_first_schedule</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>free プランで 1 件目のスケジュール作成</td><td>200 OK</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestSetPlanSchedule</code></td><td><code>test_unauthenticated_returns_401</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>未認証でスケジュール設定</td><td>401 Unauthorized</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestDeletePlanSchedule</code></td><td><code>test_success</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>プランスケジュールを削除</td><td>200 OK</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestDeletePlanSchedule</code></td><td><code>test_not_found_returns_404</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>存在しないプランスケジュールを削除</td><td>404 Not Found</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestDeletePlanSchedule</code></td><td><code>test_wrong_guild_returns_404</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>別ギルドのスケジュールを削除</td><td>404 Not Found</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestDeletePlanSchedule</code></td><td><code>test_unauthenticated_returns_401</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>未認証でスケジュール削除</td><td>401 Unauthorized</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="test_rate_limit">
+  <h2>test_rate_limit <small style="font-weight:normal;color:#555">— レートリミッター</small></h2>
+  <p style="color:#555;font-size:0.9em">POST /auth/login（10回/分）、POST /auth/reset-password（5回/分）</p>
+  <p>
+    <strong>テスト数：</strong>2 &nbsp;|&nbsp;
+    <strong style="color:#27ae60">成功：2</strong> &nbsp;|&nbsp;
+    <strong style="color:#e74c3c">失敗：0</strong> &nbsp;|&nbsp;
+    <span class="badge-normal">正常系：0</span> &nbsp;
+    <span class="badge-abnormal">異常系：2</span>
+  </p>
+  <table>
+    <thead>
+      <tr>
+        <th>テストクラス</th>
+        <th>テスト名</th>
+        <th>種別</th>
+        <th>想定ケース</th>
+        <th>想定結果</th>
+        <th>結果</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td><code>TestLoginRateLimit</code></td><td><code>test_rate_limit_returns_429</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>ログインを 10 回連続で試行（上限到達後）</td><td>429 Too Many Requests：リトライ時間付きメッセージ</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestResetPasswordRateLimit</code></td><td><code>test_rate_limit_returns_429</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>パスワードリセットを 5 回連続で試行（上限到達後）</td><td>429 Too Many Requests：リトライ時間付きメッセージ</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="test_schedules">
+  <h2>test_schedules <small style="font-weight:normal;color:#555">— 通常スケジュール API</small></h2>
+  <p style="color:#555;font-size:0.9em">GET /schedules; POST /schedules; PUT /schedules/{id}; DELETE /schedules/{id}</p>
+  <p>
+    <strong>テスト数：</strong>11 &nbsp;|&nbsp;
+    <strong style="color:#27ae60">成功：11</strong> &nbsp;|&nbsp;
+    <strong style="color:#e74c3c">失敗：0</strong> &nbsp;|&nbsp;
+    <span class="badge-normal">正常系：5</span> &nbsp;
+    <span class="badge-abnormal">異常系：6</span>
+  </p>
+  <table>
+    <thead>
+      <tr>
+        <th>テストクラス</th>
+        <th>テスト名</th>
+        <th>種別</th>
+        <th>想定ケース</th>
+        <th>想定結果</th>
+        <th>結果</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td><code>TestListSchedules</code></td><td><code>test_success</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>スケジュール一覧を取得</td><td>200 OK：スケジュールリスト返却</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestListSchedules</code></td><td><code>test_unauthenticated_returns_401</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>未認証でスケジュール一覧取得</td><td>401 Unauthorized</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestCreateSchedule</code></td><td><code>test_success</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>有効なデータでスケジュールを作成</td><td>201 Created：作成済みスケジュール返却</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestCreateSchedule</code></td><td><code>test_invalid_time_format_returns_400</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>無効な時刻フォーマットでスケジュール作成</td><td>400 Bad Request</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestCreateSchedule</code></td><td><code>test_invalid_tag_mode_returns_400</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>無効な tag_mode でスケジュール作成</td><td>400 Bad Request</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestCreateSchedule</code></td><td><code>test_allow_mode_without_tags_returns_400</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>allow モードでタグ未指定</td><td>400 Bad Request</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestCreateSchedule</code></td><td><code>test_allow_mode_with_tags_succeeds</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>allow モードでタグを指定</td><td>201 Created</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestUpdateSchedule</code></td><td><code>test_success</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>スケジュールを更新</td><td>200 OK：更新後のスケジュール返却</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestUpdateSchedule</code></td><td><code>test_not_found_returns_404</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>存在しないスケジュールを更新</td><td>404 Not Found</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestDeleteSchedule</code></td><td><code>test_success</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>スケジュールを削除</td><td>200 OK</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestDeleteSchedule</code></td><td><code>test_not_found_returns_404</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>存在しないスケジュールを削除</td><td>404 Not Found</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="test_settings">
+  <h2>test_settings <small style="font-weight:normal;color:#555">— Guild 設定 API（基本）</small></h2>
+  <p style="color:#555;font-size:0.9em">GET|PUT /settings</p>
+  <p>
+    <strong>テスト数：</strong>8 &nbsp;|&nbsp;
+    <strong style="color:#27ae60">成功：8</strong> &nbsp;|&nbsp;
+    <strong style="color:#e74c3c">失敗：0</strong> &nbsp;|&nbsp;
+    <span class="badge-normal">正常系：6</span> &nbsp;
+    <span class="badge-abnormal">異常系：2</span>
+  </p>
+  <table>
+    <thead>
+      <tr>
+        <th>テストクラス</th>
+        <th>テスト名</th>
+        <th>種別</th>
+        <th>想定ケース</th>
+        <th>想定結果</th>
+        <th>結果</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td><code>TestGetSettings</code></td><td><code>test_success</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>Guild 設定を取得</td><td>200 OK：設定データ返却</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestGetSettings</code></td><td><code>test_returns_defaults_when_no_row</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>設定レコードが未作成の場合</td><td>200 OK：デフォルト値返却</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestGetSettings</code></td><td><code>test_use_default_odai_false</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>use_default_odai=false の設定取得</td><td>200 OK：false が返却</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestGetSettings</code></td><td><code>test_unauthenticated_returns_401</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>未認証で設定取得</td><td>401 Unauthorized</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestUpdateSettings</code></td><td><code>test_update_existing</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>既存設定を更新</td><td>200 OK：更新後の設定返却</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestUpdateSettings</code></td><td><code>test_insert_when_not_exists</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>設定が未存在の場合に UPDATE</td><td>200 OK（INSERT OR UPDATE）</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestUpdateSettings</code></td><td><code>test_update_use_default_odai</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>use_default_odai フラグを更新</td><td>200 OK</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestUpdateSettings</code></td><td><code>test_non_admin_returns_403</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>一般ユーザーが設定更新</td><td>403 Forbidden</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="test_settings_extra">
+  <h2>test_settings_extra <small style="font-weight:normal;color:#555">— Guild 設定 API（追加）</small></h2>
+  <p style="color:#555;font-size:0.9em">GET /settings/name; GET /settings/channels</p>
+  <p>
+    <strong>テスト数：</strong>7 &nbsp;|&nbsp;
+    <strong style="color:#27ae60">成功：7</strong> &nbsp;|&nbsp;
+    <strong style="color:#e74c3c">失敗：0</strong> &nbsp;|&nbsp;
+    <span class="badge-normal">正常系：6</span> &nbsp;
+    <span class="badge-abnormal">異常系：1</span>
+  </p>
+  <table>
+    <thead>
+      <tr>
+        <th>テストクラス</th>
+        <th>テスト名</th>
+        <th>種別</th>
+        <th>想定ケース</th>
+        <th>想定結果</th>
+        <th>結果</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td><code>TestGetGuildName</code></td><td><code>test_success</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>登録済みギルドの名前を取得</td><td>200 OK：guild_name 返却</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestGetGuildName</code></td><td><code>test_not_registered_returns_null</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>未登録ギルドの名前取得</td><td>200 OK：guild_name=null 返却</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestGetGuildName</code></td><td><code>test_no_auth_required</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>認証なしでギルド名取得（公開エンドポイント）</td><td>200 OK（認証不要）</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestGetChannels</code></td><td><code>test_success</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>チャンネル一覧を取得</td><td>200 OK：チャンネルリスト返却</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestGetChannels</code></td><td><code>test_empty_returns_empty_list</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>チャンネルが 0 件の場合</td><td>200 OK：空リスト返却</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestGetChannels</code></td><td><code>test_channel_id_is_string</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>DB から整数型の channel_id が返る場合</td><td>レスポンスの channel_id が文字列型</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestGetChannels</code></td><td><code>test_unauthenticated_returns_401</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>未認証でチャンネル一覧取得</td><td>401 Unauthorized</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="test_stripe">
+  <h2>test_stripe <small style="font-weight:normal;color:#555">— Stripe 決済 API</small></h2>
+  <p style="color:#555;font-size:0.9em">GET /stripe/plan; POST /stripe/webhook; POST /stripe/checkout; POST /stripe/expand</p>
+  <p>
+    <strong>テスト数：</strong>20 &nbsp;|&nbsp;
+    <strong style="color:#27ae60">成功：20</strong> &nbsp;|&nbsp;
+    <strong style="color:#e74c3c">失敗：0</strong> &nbsp;|&nbsp;
+    <span class="badge-normal">正常系：11</span> &nbsp;
+    <span class="badge-abnormal">異常系：9</span>
+  </p>
+  <table>
+    <thead>
+      <tr>
+        <th>テストクラス</th>
+        <th>テスト名</th>
+        <th>種別</th>
+        <th>想定ケース</th>
+        <th>想定結果</th>
+        <th>結果</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td><code>TestGetGuildPlanEndpoint</code></td><td><code>test_returns_plan_when_record_exists</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>プランレコードが存在する場合</td><td>200 OK：プラン情報返却</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestGetGuildPlanEndpoint</code></td><td><code>test_returns_free_defaults_when_no_record</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>プランレコードがない場合</td><td>200 OK：free プランのデフォルト返却</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestGetGuildPlanEndpoint</code></td><td><code>test_current_period_end_is_returned</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>current_period_end が設定されている場合</td><td>200 OK：current_period_end フィールド含む</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestStripeWebhook</code></td><td><code>test_invalid_signature_returns_400</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>不正な Stripe 署名でウェブフック</td><td>400 Bad Request</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestStripeWebhook</code></td><td><code>test_checkout_completed_subscription_upserts_guild_plan</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>checkout.session.completed（新規サブスク）</td><td>200 OK：guild_plans テーブルが upsert される</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestStripeWebhook</code></td><td><code>test_checkout_completed_expand_increments_capacity</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>checkout.session.completed（容量拡張）</td><td>200 OK：custom_odai_capacity が加算される</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestStripeWebhook</code></td><td><code>test_subscription_updated_updates_status</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>customer.subscription.updated イベント</td><td>200 OK：status が更新される</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestStripeWebhook</code></td><td><code>test_subscription_deleted_sets_canceled</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>customer.subscription.deleted イベント</td><td>200 OK：status が canceled に設定</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestStripeWebhook</code></td><td><code>test_unknown_event_type_returns_200</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>未知のイベントタイプ</td><td>200 OK（無視して正常終了）</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestStripeWebhook</code></td><td><code>test_checkout_completed_missing_guild_id_is_noop</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>メタデータに guild_id がない場合</td><td>200 OK（ノーオペレーション）</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestCreateCheckout</code></td><td><code>test_no_bot_secret_returns_401</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>Bot シークレットなしでチェックアウト作成</td><td>401 Unauthorized</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestCreateCheckout</code></td><td><code>test_wrong_bot_secret_returns_401</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>誤った Bot シークレットでチェックアウト作成</td><td>401 Unauthorized</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestCreateCheckout</code></td><td><code>test_plan_not_found_returns_400</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>存在しないプランでチェックアウト作成</td><td>400 Bad Request</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestCreateCheckout</code></td><td><code>test_plan_without_price_id_returns_400</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>price_id 未設定のプランでチェックアウト</td><td>400 Bad Request</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestCreateCheckout</code></td><td><code>test_success_returns_checkout_url</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>有効なプランでチェックアウト作成</td><td>200 OK：Stripe チェックアウト URL 返却</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestCreateExpand</code></td><td><code>test_no_bot_secret_returns_401</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>Bot シークレットなしで容量拡張</td><td>401 Unauthorized</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestCreateExpand</code></td><td><code>test_guild_not_found_returns_404</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>存在しないギルドで容量拡張</td><td>404 Not Found</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestCreateExpand</code></td><td><code>test_cannot_expand_returns_403</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>容量拡張が許可されていないプランで拡張</td><td>403 Forbidden</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestCreateExpand</code></td><td><code>test_exceeds_max_capacity_returns_400</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>最大容量を超える拡張</td><td>400 Bad Request</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestCreateExpand</code></td><td><code>test_success_returns_checkout_url</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>有効な容量拡張リクエスト</td><td>200 OK：Stripe チェックアウト URL 返却</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="test_summary">
+  <h2>test_summary <small style="font-weight:normal;color:#555">— ダッシュボードサマリー</small></h2>
+  <p style="color:#555;font-size:0.9em">GET /dashboard-summary</p>
+  <p>
+    <strong>テスト数：</strong>3 &nbsp;|&nbsp;
+    <strong style="color:#27ae60">成功：3</strong> &nbsp;|&nbsp;
+    <strong style="color:#e74c3c">失敗：0</strong> &nbsp;|&nbsp;
+    <span class="badge-normal">正常系：2</span> &nbsp;
+    <span class="badge-abnormal">異常系：1</span>
+  </p>
+  <table>
+    <thead>
+      <tr>
+        <th>テストクラス</th>
+        <th>テスト名</th>
+        <th>種別</th>
+        <th>想定ケース</th>
+        <th>想定結果</th>
+        <th>結果</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td><code>TestDashboardSummary</code></td><td><code>test_success_with_last_post</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>最終投稿あり状態でサマリー取得</td><td>200 OK：last_post フィールド含む</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestDashboardSummary</code></td><td><code>test_success_without_last_post</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>最終投稿なし状態でサマリー取得</td><td>200 OK：last_post=null</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestDashboardSummary</code></td><td><code>test_unauthenticated_returns_401</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>未認証でサマリー取得</td><td>401 Unauthorized</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="test_tags">
+  <h2>test_tags <small style="font-weight:normal;color:#555">— タグ API（基本）</small></h2>
+  <p style="color:#555;font-size:0.9em">GET /tags; POST /tags; PUT /tags/{id}; DELETE /tags/{id}</p>
+  <p>
+    <strong>テスト数：</strong>11 &nbsp;|&nbsp;
+    <strong style="color:#27ae60">成功：11</strong> &nbsp;|&nbsp;
+    <strong style="color:#e74c3c">失敗：0</strong> &nbsp;|&nbsp;
+    <span class="badge-normal">正常系：5</span> &nbsp;
+    <span class="badge-abnormal">異常系：6</span>
+  </p>
+  <table>
+    <thead>
+      <tr>
+        <th>テストクラス</th>
+        <th>テスト名</th>
+        <th>種別</th>
+        <th>想定ケース</th>
+        <th>想定結果</th>
+        <th>結果</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td><code>TestListTags</code></td><td><code>test_success</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>タグ一覧を取得</td><td>200 OK：タグリスト返却</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestListTags</code></td><td><code>test_search_passes_query_param</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>検索クエリ指定でタグ一覧取得</td><td>200 OK：クエリが DB に渡される</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestListTags</code></td><td><code>test_unauthenticated_returns_401</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>未認証でタグ一覧取得</td><td>401 Unauthorized</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestCreateTag</code></td><td><code>test_success</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>新しいタグを作成</td><td>201 Created：作成済みタグ返却</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestCreateTag</code></td><td><code>test_duplicate_name_returns_409</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>既存のタグ名で作成</td><td>409 Conflict</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestUpdateTag</code></td><td><code>test_success</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>タグ情報を更新</td><td>200 OK：更新後のタグ返却</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestUpdateTag</code></td><td><code>test_not_found_returns_404</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>存在しないタグを更新</td><td>404 Not Found</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestUpdateTag</code></td><td><code>test_name_conflict_returns_409</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>別タグと同名に変更</td><td>409 Conflict</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestUpdateTag</code></td><td><code>test_no_fields_returns_400</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>更新フィールド未指定</td><td>400 Bad Request</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestDeleteTag</code></td><td><code>test_success</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>タグを削除</td><td>200 OK</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestDeleteTag</code></td><td><code>test_not_found_returns_404</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>存在しないタグを削除</td><td>404 Not Found</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="test_tags_extra">
+  <h2>test_tags_extra <small style="font-weight:normal;color:#555">— タグ API（追加）</small></h2>
+  <p style="color:#555;font-size:0.9em">GET /tags/{id}/detail</p>
+  <p>
+    <strong>テスト数：</strong>5 &nbsp;|&nbsp;
+    <strong style="color:#27ae60">成功：5</strong> &nbsp;|&nbsp;
+    <strong style="color:#e74c3c">失敗：0</strong> &nbsp;|&nbsp;
+    <span class="badge-normal">正常系：3</span> &nbsp;
+    <span class="badge-abnormal">異常系：2</span>
+  </p>
+  <table>
+    <thead>
+      <tr>
+        <th>テストクラス</th>
+        <th>テスト名</th>
+        <th>種別</th>
+        <th>想定ケース</th>
+        <th>想定結果</th>
+        <th>結果</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td><code>TestGetTagDetail</code></td><td><code>test_success</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>タグ詳細（お題・スケジュール埋め込み）を取得</td><td>200 OK：name / odai / schedules 返却</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestGetTagDetail</code></td><td><code>test_not_found_returns_404</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>存在しないタグの詳細取得</td><td>404 Not Found</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestGetTagDetail</code></td><td><code>test_includes_odai_list</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>タグ詳細にお題一覧が含まれること</td><td>200 OK：odai フィールドにリスト</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestGetTagDetail</code></td><td><code>test_includes_schedules_with_enabled_as_bool</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>schedules の enabled が bool 型か確認</td><td>enabled=true（int→bool 変換）</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestGetTagDetail</code></td><td><code>test_unauthenticated_returns_401</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>未認証でタグ詳細取得</td><td>401 Unauthorized</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="test_test_post">
+  <h2>test_test_post <small style="font-weight:normal;color:#555">— テスト投稿 API</small></h2>
+  <p style="color:#555;font-size:0.9em">POST /test-post</p>
+  <p>
+    <strong>テスト数：</strong>5 &nbsp;|&nbsp;
+    <strong style="color:#27ae60">成功：5</strong> &nbsp;|&nbsp;
+    <strong style="color:#e74c3c">失敗：0</strong> &nbsp;|&nbsp;
+    <span class="badge-normal">正常系：3</span> &nbsp;
+    <span class="badge-abnormal">異常系：2</span>
+  </p>
+  <table>
+    <thead>
+      <tr>
+        <th>テストクラス</th>
+        <th>テスト名</th>
+        <th>種別</th>
+        <th>想定ケース</th>
+        <th>想定結果</th>
+        <th>結果</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td><code>TestTestPost</code></td><td><code>test_success</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>候補お題が存在する場合にテスト投稿</td><td>200 OK：選択されたお題返却</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestTestPost</code></td><td><code>test_no_candidate_returns_404</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>候補お題が 0 件の場合にテスト投稿</td><td>404 Not Found</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestTestPost</code></td><td><code>test_with_tag_mode_and_list</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>tag_mode と tag_list を指定してテスト投稿</td><td>200 OK：指定タグ条件で候補選択</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestTestPost</code></td><td><code>test_default_tag_mode_is_all</code></td><td style='text-align:center'><span class="badge-normal">正常系</span></td><td>tag_mode 未指定でテスト投稿</td><td>200 OK：デフォルト tag_mode='all' が適用</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+      <tr><td><code>TestTestPost</code></td><td><code>test_unauthenticated_returns_401</code></td><td style='text-align:center'><span class="badge-abnormal">異常系</span></td><td>未認証でテスト投稿</td><td>401 Unauthorized</td><td style='text-align:center'><span class="badge-pass">PASS</span></td></tr>
+    </tbody>
+  </table>
+</section>
+
+
+</div>
+</body>
+</html>

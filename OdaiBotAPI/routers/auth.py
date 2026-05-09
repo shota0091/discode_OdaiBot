@@ -23,6 +23,7 @@ from ..deps import (
     hash_password,
     make_token,
     require_admin,
+    require_dashboard_plan,
     verify_password,
     security,
 )
@@ -49,7 +50,7 @@ def _validate_password(password: str) -> None:
 
 
 @router.post("/login", response_model=TokenResponse)
-def login(guild_id: int, payload: LoginRequest, _: None = Depends(login_rate_limit)):
+def login(guild_id: int, payload: LoginRequest, _: None = Depends(login_rate_limit), __: None = Depends(require_dashboard_plan)):
     try:
         login_id = int(payload.username)
     except ValueError:

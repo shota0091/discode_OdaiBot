@@ -42,16 +42,19 @@ def main() -> None:
         print()
         print("作成・更新されたテーブル:")
         tables = [
-            "guild_settings    ... サーバー設定・サーバー名（guild_name 追加済み）",
-            "users             ... Dashboard ユーザー",
-            "user_invites      ... 招待トークン",
-            "odai              ... お題画像",
-            "tags              ... タグマスタ",
-            "odai_tags         ... お題↔タグ 中間テーブル",
-            "odai_usage        ... チャンネル別投稿済みお題（ローテーション管理）",
-            "channels          ... チャンネルキャッシュ（Bot が自動同期）",
-            "schedules         ... 自動投稿スケジュール",
-            "post_history      ... 投稿履歴",
+            "guild_settings      ... サーバー設定（use_default_odai 含む）",
+            "users               ... Dashboard ユーザー",
+            "user_invites        ... 招待トークン",
+            "odai                ... 独自お題画像",
+            "tags                ... タグマスタ",
+            "odai_tags           ... お題↔タグ 中間テーブル",
+            "odai_usage          ... チャンネル別投稿済みお題（ローテーション管理）",
+            "channels            ... チャンネルキャッシュ（Bot が自動同期）",
+            "schedules           ... 自動投稿スケジュール",
+            "post_history        ... 投稿履歴",
+            "plans               ... プランマスタ（free/light/pro/enterprise）",
+            "guild_plans         ... guild とプランの紐付け・Stripe 情報",
+            "guild_default_odai  ... Free guild に割り当てられたデフォルトお題（odai.is_default=1 から抽出）",
         ]
         for t in tables:
             print(f"  - {t}")

@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from ..deps import get_current_user, notify_service
+from ..deps import get_current_user, notify_service, require_pro_plan
 from ..schemas import TestPostRequest
 
 router = APIRouter(prefix="/api/guilds/{guild_id}", tags=["test-post"])
 
 
-@router.post("/test-post", dependencies=[Depends(get_current_user)])
+@router.post("/test-post", dependencies=[Depends(get_current_user), Depends(require_pro_plan)])
 # 投稿候補をテスト取得します。Dashboard のテスト投稿機能で使用します。
 def test_post(guild_id: int, payload: TestPostRequest):
     schedule = {

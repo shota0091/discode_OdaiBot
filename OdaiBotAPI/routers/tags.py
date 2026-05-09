@@ -4,10 +4,10 @@ import json
 
 from fastapi import APIRouter, Depends, HTTPException, Response
 
-from ..deps import db, get_current_user, require_admin
+from ..deps import db, get_current_user, require_admin, require_pro_plan
 from ..schemas import TagCreateRequest, TagUpdateRequest
 
-router = APIRouter(prefix="/api/guilds/{guild_id}/tags", tags=["tags"])
+router = APIRouter(prefix="/api/guilds/{guild_id}/tags", tags=["tags"], dependencies=[Depends(require_pro_plan)])
 
 
 @router.get("", dependencies=[Depends(get_current_user)])

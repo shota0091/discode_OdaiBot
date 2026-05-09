@@ -421,6 +421,92 @@ class MySQLDatabase:
         if col_count > 0:
             cursor.execute("ALTER TABLE guild_settings DROP COLUMN dashboard_role")
 
+        # ── Phase 2: ビジネスモデル基盤テーブル ─────────────────────────────
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS plans (
+                id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                name VARCHAR(32) NOT NULL UNIQUE,
+                price INT NOT NULL DEFAULT 0,
+                default_odai_limit INT NULL COMMENT '割当デフォルトお題数（NULL=全件）',
+                custom_odai_base INT NULL COMMENT '独自お題基本枠（NULL=無制限、0=不可）',
+                custom_odai_max INT NULL COMMENT '独自お題上限（NULL=無制限）',
+                can_expand_capacity TINYINT(1) NOT NULL DEFAULT 0,
+                has_dashboard TINYINT(1) NOT NULL DEFAULT 0,
+                has_discord_op TINYINT(1) NOT NULL DEFAULT 0,
+                stripe_price_id VARCHAR(128) NULL,
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+            """
+        )
+        cursor.execute(
+            """
+            INSERT IGNORE INTO plans
+                (name, price, default_odai_limit, custom_odai_base, custom_odai_max,
+                 can_expand_capacity, has_dashboard, has_discord_op)
+            VALUES
+                ('free',          0,   50,    0,    0, 0, 0, 0),
+                ('light',       600, NULL,  100, 1000, 1, 1, 1),
+                ('pro',         960, NULL,  500, NULL, 1, 1, 1),
+                ('enterprise',    0, NULL, NULL, NULL, 0, 1, 1)
+            """
+        )
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS guild_plans (
+                id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                guild_id BIGINT NOT NULL UNIQUE,
+                plan_id BIGINT NOT NULL,
+                custom_odai_capacity INT NULL DEFAULT 0 COMMENT '現在の独自お題上限（基本枠+拡張枠）。NULL=無制限',
+                stripe_customer_id VARCHAR(128) NULL,
+                stripe_subscription_id VARCHAR(128) NULL,
+                status VARCHAR(32) NOT NULL DEFAULT 'active',
+                current_period_end DATETIME NULL,
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                CONSTRAINT fk_guild_plans_plan FOREIGN KEY (plan_id) REFERENCES plans(id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+            """
+        )
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS default_odai (
+                id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                filename VARCHAR(255) NOT NULL UNIQUE,
+                storage_path VARCHAR(1024) NOT NULL,
+                is_active TINYINT(1) NOT NULL DEFAULT 1,
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+            """
+        )
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS guild_default_odai (
+                id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                guild_id BIGINT NOT NULL,
+                default_odai_id BIGINT NOT NULL,
+                assigned_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE KEY uq_guild_default_odai (guild_id, default_odai_id),
+                CONSTRAINT fk_guild_default_odai FOREIGN KEY (default_odai_id)
+                    REFERENCES default_odai(id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+            """
+        )
+        # Light プランの has_dashboard を 1 に更新（既存 DB 対応）
+        cursor.execute("UPDATE plans SET has_dashboard = 1 WHERE name = 'light' AND has_dashboard = 0")
+
+        # guild_settings.use_default_odai マイグレーション
+        cursor.execute(
+            "SELECT COUNT(*) FROM information_schema.COLUMNS "
+            "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'guild_settings' AND COLUMN_NAME = 'use_default_odai'"
+        )
+        (col_count,) = cursor.fetchone()
+        if col_count == 0:
+            cursor.execute(
+                "ALTER TABLE guild_settings ADD COLUMN use_default_odai TINYINT(1) NOT NULL DEFAULT 1"
+            )
+
         # login_attempts / locked_until / login_locked マイグレーション
         for col, definition in [
             ("login_attempts", "INT NOT NULL DEFAULT 0"),
