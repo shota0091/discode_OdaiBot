@@ -132,7 +132,7 @@ const PlanPage = {
               <p class="capacity-info__sub">容量制限なし</p>
               `}
             </div>
-            ${p.can_expand_capacity && isAdmin ? `
+            ${p.can_expand_capacity && isAdmin && capTotal !== null ? `
             <div class="expand-action">
               <button class="btn btn--primary btn--sm" id="expand-btn">容量を拡張する</button>
               <p class="text-muted" style="margin-top:6px;font-size:12px">+100件単位で拡張できます</p>
