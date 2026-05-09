@@ -8,7 +8,6 @@ const PlanPage = {
     const isAdmin = localStorage.getItem('role') === 'admin';
     const storedPlanName = localStorage.getItem('plan_name') || 'free';
     const isFree = storedPlanName === 'free';
-    const isPro = storedPlanName === 'pro' || storedPlanName === 'enterprise';
 
     try {
       const baseReqs = [API.getPlan(), API.getSummary(), API.getSettings()];
@@ -31,6 +30,7 @@ const PlanPage = {
       const statusColors = { active: 'success', canceled: 'error', past_due: 'warning' };
 
       const planName = p.plan_name || 'free';
+      const isPro = planName === 'pro';  // pro のみ。enterprise は対象外
       const planLabel = planLabels[planName] || planName;
       const planColor = planColors[planName] || 'disabled';
       const statusLabel = statusLabels[p.status] || p.status || '有効';
@@ -142,9 +142,10 @@ const PlanPage = {
         </div>
         ` : ''}
 
+        ${isPro ? `
         <div class="section">
           <h2 class="section__title">デフォルトお題設定</h2>
-          ${isAdmin && isPro ? `
+          ${isAdmin ? `
           <form id="default-odai-form" class="form form--inline">
             <div class="form__group">
               <label class="form__label">デフォルトお題を使用する</label>
@@ -167,11 +168,12 @@ const PlanPage = {
           </table>
           `}
         </div>
+        ` : ''}
       `;
 
-      if (isAdmin && isPro) this._bindDefaultOdaiForm();
       if (isAdmin && isFree) this._bindScheduleForm(schedule);
       if (isAdmin && p.can_expand_capacity) this._bindExpandButton();
+      if (isAdmin && isPro) this._bindDefaultOdaiForm();
     } catch (err) {
       document.getElementById('plan-root').innerHTML = `<p class="text-error">${escapeHtml(err.message)}</p>`;
     }
