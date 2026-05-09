@@ -158,6 +158,13 @@ const API = {
     });
   },
 
+  async cancelPlan() {
+    return this._fetch(`/api/guilds/${this._guildId()}/plan/cancel`, {
+      method: 'POST',
+      headers: this._headers(),
+    });
+  },
+
   async expandCapacity(units, successUrl, cancelUrl) {
     return this._fetch(`/api/guilds/${this._guildId()}/plan/expand`, {
       method: 'POST',

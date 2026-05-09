@@ -1,7 +1,5 @@
 import hashlib
-import io
 import os
-import re
 import sys
 import secrets
 from pathlib import Path
@@ -26,11 +24,6 @@ INVITE_EXPIRE_HOURS = int(os.getenv("INVITE_EXPIRE_HOURS", "24"))
 API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")
 BOT_INTERNAL_SECRET = os.getenv("BOT_INTERNAL_SECRET", "")
 
-_MAX_ODAI_BYTES = 8 * 1024 * 1024
-_ALLOWED_MIME = {"image/jpeg", "image/png", "image/webp"}
-_ODAI_PER_PAGE = 15
-
-
 def _api_headers() -> dict:
     return {"X-Bot-Secret": BOT_INTERNAL_SECRET}
 
@@ -54,22 +47,6 @@ def _get_plan_row(guild_id: int, db) -> dict:
 def _has_discord_op(guild_id: int, db) -> bool:
     return bool(_get_plan_row(guild_id, db).get("has_discord_op"))
 
-
-def _check_capacity(guild_id: int, db, adding: int = 1) -> tuple[bool, str]:
-    """容量チェック。(ok, message) を返す。cap=None は無制限。"""
-    plan = _get_plan_row(guild_id, db)
-    cap = plan.get("custom_odai_capacity")
-    if cap is None:
-        return True, ""
-    if cap == 0:
-        return False, "このプランでは独自お題を登録できません（Light プラン以上が必要です）"
-    current = db.query_one(
-        "SELECT COUNT(*) AS cnt FROM odai WHERE guild_id = %s AND deleted_at IS NULL", (guild_id,)
-    )
-    cnt = current["cnt"] if current else 0
-    if cnt + adding > cap:
-        return False, f"お題の登録上限（{cap} 件）に達しています。`/expand` で容量を拡張してください"
-    return True, ""
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -258,220 +235,6 @@ async def subscribe(interaction: discord.Interaction, plan: str):
             )
     except Exception as e:
         await interaction.followup.send(f"❌ エラーが発生しました: {e}", ephemeral=True)
-
-
-@bot.tree.command(name="expand", description="お題容量を拡張します（Stripe の決済ページを DM で送付）")
-@app_commands.default_permissions(administrator=True)
-@app_commands.describe(units="追加する 100件単位数（例: 1 → +100件）")
-async def expand_capacity(interaction: discord.Interaction, units: int = 1):
-    import httpx
-    if units < 1:
-        await interaction.response.send_message("⚠️ units は 1 以上を指定してください。", ephemeral=True)
-        return
-    factory = OdaiFactory(interaction.guild_id)
-    plan = _get_plan_row(interaction.guild_id, factory.db)
-    if not plan.get("can_expand_capacity"):
-        await interaction.response.send_message(
-            "⚠️ このプランは容量拡張に対応していません。", ephemeral=True
-        )
-        return
-    await interaction.response.defer(ephemeral=True)
-    success_url = f"{DASHBOARD_BASE_URL.rstrip('/')}#/expand/success"
-    cancel_url = f"{DASHBOARD_BASE_URL.rstrip('/')}#/expand/cancel"
-    try:
-        async with httpx.AsyncClient() as client:
-            res = await client.post(
-                f"{API_BASE_URL}/api/stripe/expand",
-                json={"guild_id": interaction.guild_id, "units": units,
-                      "success_url": success_url, "cancel_url": cancel_url},
-                headers=_api_headers(),
-                timeout=10,
-            )
-        if res.status_code != 200:
-            await interaction.followup.send(f"❌ 拡張 URL の生成に失敗しました: {res.text}", ephemeral=True)
-            return
-        url = res.json().get("url", "")
-        plan_name = plan.get("plan_name", "light")
-        unit_price = 400 if plan_name == "light" else 100
-        try:
-            await interaction.user.send(
-                f"✅ **お題容量拡張 +{units * 100}件（¥{unit_price * units}）**\n\n{url}\n\n"
-                "このリンクから決済を完了してください。"
-            )
-            await interaction.followup.send("📬 DM に決済リンクを送りました。", ephemeral=True)
-        except discord.Forbidden:
-            await interaction.followup.send(
-                f"📬 DM が送れませんでした。直接このリンクをご利用ください:\n{url}", ephemeral=True
-            )
-    except Exception as e:
-        await interaction.followup.send(f"❌ エラーが発生しました: {e}", ephemeral=True)
-
-
-# ---- お題コマンド（Light 以上）----
-
-@bot.tree.command(name="odai_add", description="画像を添付してお題を登録します")
-@app_commands.default_permissions(administrator=True)
-@app_commands.describe(file="登録するお題画像（jpg/png/webp）", tags="タグ（カンマ区切り、省略可）")
-async def odai_add(interaction: discord.Interaction, file: discord.Attachment, tags: str = None):
-    factory = OdaiFactory(interaction.guild_id)
-
-    if not _has_discord_op(interaction.guild_id, factory.db):
-        await interaction.response.send_message(
-            "⚠️ このコマンドは Light プラン以上でご利用いただけます。", ephemeral=True
-        )
-        return
-
-    ok, msg = _check_capacity(interaction.guild_id, factory.db)
-    if not ok:
-        await interaction.response.send_message(f"⚠️ {msg}", ephemeral=True)
-        return
-
-    if file.content_type not in _ALLOWED_MIME:
-        await interaction.response.send_message("⚠️ jpg / png / webp のみ登録できます。", ephemeral=True)
-        return
-
-    if file.size > _MAX_ODAI_BYTES:
-        await interaction.response.send_message("⚠️ ファイルサイズは 8 MB 以下にしてください。", ephemeral=True)
-        return
-
-    await interaction.response.defer(ephemeral=True)
-    content = await file.read()
-    tag_list = [t.strip() for t in tags.split(",") if t.strip()] if tags else []
-    odai_repo = factory.getOdaiRepository()
-    success, message = odai_repo.add_odai(interaction.guild_id, file.filename, content, tag_list)
-    if success:
-        await interaction.followup.send(f"✅ {message}", ephemeral=True)
-    else:
-        await interaction.followup.send(f"❌ {message}", ephemeral=True)
-
-
-@bot.tree.command(name="odai_list", description="登録済みお題の一覧を表示します")
-@app_commands.default_permissions(administrator=True)
-@app_commands.describe(page="ページ番号（デフォルト: 1）")
-async def odai_list(interaction: discord.Interaction, page: int = 1):
-    factory = OdaiFactory(interaction.guild_id)
-
-    if not _has_discord_op(interaction.guild_id, factory.db):
-        await interaction.response.send_message(
-            "⚠️ このコマンドは Light プラン以上でご利用いただけます。", ephemeral=True
-        )
-        return
-
-    total_row = factory.db.query_one(
-        "SELECT COUNT(*) AS cnt FROM odai WHERE guild_id = %s AND deleted_at IS NULL",
-        (interaction.guild_id,),
-    )
-    total = total_row["cnt"] if total_row else 0
-    total_pages = max(1, (total + _ODAI_PER_PAGE - 1) // _ODAI_PER_PAGE)
-    page = max(1, min(page, total_pages))
-    offset = (page - 1) * _ODAI_PER_PAGE
-
-    rows = factory.db.query(
-        "SELECT filename, added_at FROM odai WHERE guild_id = %s AND deleted_at IS NULL "
-        "ORDER BY added_at DESC LIMIT %s OFFSET %s",
-        (interaction.guild_id, _ODAI_PER_PAGE, offset),
-    )
-
-    if not rows:
-        await interaction.response.send_message("📭 お題が登録されていません。", ephemeral=True)
-        return
-
-    lines = [f"`{r['filename']}`" for r in rows]
-    body = "\n".join(lines)
-    await interaction.response.send_message(
-        f"📋 **お題一覧** ({page} / {total_pages} ページ、全 {total} 件)\n\n{body}",
-        ephemeral=True,
-    )
-
-
-@bot.tree.command(name="odai_delete", description="お題をファイル名で削除します")
-@app_commands.default_permissions(administrator=True)
-@app_commands.describe(filename="削除するお題のファイル名")
-async def odai_delete(interaction: discord.Interaction, filename: str):
-    factory = OdaiFactory(interaction.guild_id)
-
-    if not _has_discord_op(interaction.guild_id, factory.db):
-        await interaction.response.send_message(
-            "⚠️ このコマンドは Light プラン以上でご利用いただけます。", ephemeral=True
-        )
-        return
-
-    odai_repo = factory.getOdaiRepository()
-    result = odai_repo.remove_odai(interaction.guild_id, filename)
-    await interaction.response.send_message(result, ephemeral=True)
-
-
-# ---- スケジュールコマンド（Light 以上）----
-
-@bot.tree.command(name="schedule_add", description="お題の自動投稿スケジュールを追加します")
-@app_commands.default_permissions(administrator=True)
-@app_commands.describe(time="投稿時刻（HH:MM 形式、例: 09:00）", channel="投稿先チャンネル")
-async def schedule_add(interaction: discord.Interaction, time: str, channel: discord.TextChannel):
-    factory = OdaiFactory(interaction.guild_id)
-
-    if not _has_discord_op(interaction.guild_id, factory.db):
-        await interaction.response.send_message(
-            "⚠️ このコマンドは Light プラン以上でご利用いただけます。", ephemeral=True
-        )
-        return
-
-    if not re.match(r"^\d{2}:\d{2}$", time):
-        await interaction.response.send_message("⚠️ 時刻は HH:MM 形式で入力してください（例: 09:00）。", ephemeral=True)
-        return
-
-    schedule_repo = factory.scheduleRepository
-    existing = factory.db.query_one(
-        "SELECT id FROM schedules WHERE guild_id = %s AND channel_id = %s AND time = %s",
-        (interaction.guild_id, channel.id, time),
-    )
-    if existing:
-        await interaction.response.send_message(
-            f"⚠️ {channel.mention} の {time} はすでに登録されています。", ephemeral=True
-        )
-        return
-
-    schedule_repo.save({
-        "guild_id": interaction.guild_id,
-        "channel_id": channel.id,
-        "time": time,
-        "enabled": True,
-        "tag_mode": "all",
-        "tag_list": [],
-    })
-    await interaction.response.send_message(
-        f"✅ スケジュールを追加しました: {time} → {channel.mention}", ephemeral=True
-    )
-
-
-@bot.tree.command(name="schedule_list", description="登録済みのスケジュール一覧を表示します")
-@app_commands.default_permissions(administrator=True)
-async def schedule_list(interaction: discord.Interaction):
-    factory = OdaiFactory(interaction.guild_id)
-
-    if not _has_discord_op(interaction.guild_id, factory.db):
-        await interaction.response.send_message(
-            "⚠️ このコマンドは Light プラン以上でご利用いただけます。", ephemeral=True
-        )
-        return
-
-    rows = factory.db.query(
-        "SELECT s.id, s.time, s.channel_id, c.name AS channel_name "
-        "FROM schedules s LEFT JOIN channels c ON c.guild_id = s.guild_id AND c.channel_id = s.channel_id "
-        "WHERE s.guild_id = %s AND s.enabled = 1 ORDER BY s.time",
-        (interaction.guild_id,),
-    )
-    if not rows:
-        await interaction.response.send_message("📭 スケジュールが登録されていません。", ephemeral=True)
-        return
-
-    lines = []
-    for r in rows:
-        ch = f"#{r['channel_name']}" if r.get("channel_name") else f"<#{r['channel_id']}>"
-        lines.append(f"`{r['time']}` → {ch}")
-    await interaction.response.send_message(
-        f"📅 **スケジュール一覧**（{len(rows)} 件）\n\n" + "\n".join(lines),
-        ephemeral=True,
-    )
 
 
 # ---- Scheduler ----

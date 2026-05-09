@@ -98,11 +98,12 @@ def get_guild_plan(guild_id: int) -> dict:
     if gp:
         return gp
     free = db.query_one(
-        "SELECT name AS plan_name, has_dashboard, has_discord_op, can_expand_capacity, custom_odai_max "
+        "SELECT name AS plan_name, has_dashboard, has_discord_op, can_expand_capacity, custom_odai_max, custom_odai_base "
         "FROM plans WHERE name = 'free'",
         (),
     )
-    return {**(free or {}), "custom_odai_capacity": 0, "status": "active"}
+    base_cap = (free or {}).get("custom_odai_base") or 0
+    return {**(free or {}), "custom_odai_capacity": base_cap, "status": "active"}
 
 
 def require_dashboard_plan(guild_id: int) -> None:

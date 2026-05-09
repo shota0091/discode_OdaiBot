@@ -73,6 +73,7 @@ const OdaiPage = {
     document.getElementById('upload-odai-btn').addEventListener('click', () => this._openUploadForm());
     document.getElementById('bulk-delete-btn').addEventListener('click', () => this._bulkDelete());
     document.getElementById('bulk-tag-btn').addEventListener('click', () => this._openBulkTagForm());
+
     await this._loadOdai();
   },
 
@@ -625,4 +626,5 @@ const OdaiPage = {
       }
     );
   },
+
 };

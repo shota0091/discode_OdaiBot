@@ -169,11 +169,20 @@ const PlanPage = {
           `}
         </div>
         ` : ''}
+
+        ${isAdmin && planName !== 'free' && planName !== 'enterprise' && p.status === 'active' ? `
+        <div class="section">
+          <h2 class="section__title">解約</h2>
+          <p class="text-muted" style="margin-bottom:12px">解約後も現在の請求期間終了日までご利用いただけます。</p>
+          <button class="btn btn--danger btn--sm" id="cancel-plan-btn">解約する</button>
+        </div>
+        ` : ''}
       `;
 
       if (isAdmin && isFree) this._bindScheduleForm(schedule);
       if (isAdmin && p.can_expand_capacity) this._bindExpandButton();
       if (isAdmin && isPro) this._bindDefaultOdaiForm();
+      if (isAdmin && planName !== 'free' && planName !== 'enterprise' && p.status === 'active') this._bindCancelButton();
     } catch (err) {
       document.getElementById('plan-root').innerHTML = `<p class="text-error">${escapeHtml(err.message)}</p>`;
     }
@@ -250,6 +259,26 @@ const PlanPage = {
           confirmBtn.disabled = false;
         }
       });
+    });
+  },
+
+  _bindCancelButton() {
+    const btn = document.getElementById('cancel-plan-btn');
+    if (!btn) return;
+    btn.addEventListener('click', () => {
+      Modal.confirm(
+        '解約確認',
+        '本当に解約しますか？<br>解約後も現在の請求期間終了日までご利用いただけます。',
+        async () => {
+          try {
+            await API.cancelPlan();
+            Toast.success('解約しました。期間終了日までご利用いただけます。');
+            Router.navigate(location.hash);
+          } catch (err) {
+            Toast.error(err.message);
+          }
+        }
+      );
     });
   },
 

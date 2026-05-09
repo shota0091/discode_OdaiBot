@@ -18,9 +18,8 @@ stripe.api_key = os.getenv("STRIPE_SECRET_KEY", "")
 _WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
 _BOT_SECRET = os.getenv("BOT_INTERNAL_SECRET", "")
 
-# Light は割高設定にして Pro へ自然誘導
 _EXPAND_UNIT_AMOUNT = {
-    "light": 400,
+    "light": 100,
     "pro": 100,
 }
 _EXPAND_UNIT_ODAI = 100
@@ -267,6 +266,30 @@ def dashboard_expand_checkout(
         cancel_url=payload.cancel_url,
     )
     return {"url": session.url}
+
+
+@router.post("/api/guilds/{guild_id}/plan/cancel")
+def cancel_plan(guild_id: int, _user: dict = Depends(require_admin)):
+    gp = db.query_one(
+        "SELECT stripe_subscription_id, status FROM guild_plans WHERE guild_id = %s",
+        (guild_id,),
+    )
+    if not gp:
+        raise HTTPException(status_code=404, detail="プラン情報が見つかりません")
+    if gp.get("status") == "canceled":
+        raise HTTPException(status_code=400, detail="すでにキャンセル済みです")
+
+    sub_id = gp.get("stripe_subscription_id")
+    if not sub_id:
+        raise HTTPException(status_code=400, detail="Freeプランはキャンセル不要です")
+
+    stripe.Subscription.modify(sub_id, cancel_at_period_end=True)
+    db.execute(
+        "UPDATE guild_plans SET status = 'canceled' WHERE guild_id = %s",
+        (guild_id,),
+        commit=True,
+    )
+    return {"status": "canceled"}
 
 
 @router.get("/api/guilds/{guild_id}/plan")

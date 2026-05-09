@@ -4,10 +4,10 @@ from typing import List, Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile
 
-from ..deps import check_odai_capacity, db, get_current_user, normalize_tags, odai_repo, require_admin, require_pro_plan
+from ..deps import check_odai_capacity, db, get_current_user, normalize_tags, odai_repo, require_admin
 from ..schemas import OdaiUpdateRequest
 
-router = APIRouter(prefix="/api/guilds/{guild_id}/odai", tags=["odai"], dependencies=[Depends(require_pro_plan)])
+router = APIRouter(prefix="/api/guilds/{guild_id}/odai", tags=["odai"])
 
 _ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp"}
 _MAX_FILE_SIZE = 8 * 1024 * 1024  # 8 MB
