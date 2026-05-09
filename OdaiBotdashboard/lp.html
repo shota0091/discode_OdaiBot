@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>お題Bot - Discord向け自動投稿SaaS</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', sans-serif; color: #1a1a2e; background: #fff; line-height: 1.7; }
+
+    /* Header */
+    .header { background: #1a1a2e; padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; }
+    .header__logo { color: #fff; font-size: 20px; font-weight: 700; text-decoration: none; }
+    .header__login { background: #5865f2; color: #fff; padding: 8px 20px; border-radius: 6px; text-decoration: none; font-size: 14px; font-weight: 600; }
+    .header__login:hover { background: #4752c4; }
+
+    /* Hero */
+    .hero { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 60%, #0f3460 100%); color: #fff; text-align: center; padding: 80px 24px; }
+    .hero__tag { display: inline-block; background: rgba(88,101,242,0.3); color: #a5b4fc; font-size: 13px; padding: 4px 14px; border-radius: 20px; margin-bottom: 20px; border: 1px solid rgba(88,101,242,0.5); }
+    .hero__title { font-size: clamp(28px, 5vw, 48px); font-weight: 800; margin-bottom: 16px; line-height: 1.3; }
+    .hero__title span { color: #7c8af7; }
+    .hero__desc { font-size: 17px; color: #c0c8e8; max-width: 560px; margin: 0 auto 36px; }
+    .hero__btn { display: inline-block; background: #5865f2; color: #fff; padding: 14px 36px; border-radius: 8px; text-decoration: none; font-size: 16px; font-weight: 700; transition: background .2s; }
+    .hero__btn:hover { background: #4752c4; }
+
+    /* Features */
+    .section { padding: 64px 24px; max-width: 960px; margin: 0 auto; }
+    .section__title { font-size: 26px; font-weight: 700; text-align: center; margin-bottom: 40px; }
+    .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 24px; }
+    .feature { background: #f5f7ff; border-radius: 12px; padding: 28px; }
+    .feature__icon { font-size: 32px; margin-bottom: 12px; }
+    .feature__title { font-size: 17px; font-weight: 700; margin-bottom: 8px; }
+    .feature__desc { font-size: 14px; color: #555; }
+
+    /* Pricing */
+    .pricing-bg { background: #f8f9ff; }
+    .plans { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; max-width: 960px; margin: 0 auto; padding: 0 24px 64px; }
+    .plan { background: #fff; border: 2px solid #e8eaf6; border-radius: 14px; padding: 28px 24px; position: relative; }
+    .plan--popular { border-color: #5865f2; }
+    .plan__badge { position: absolute; top: -13px; left: 50%; transform: translateX(-50%); background: #5865f2; color: #fff; font-size: 12px; font-weight: 700; padding: 3px 14px; border-radius: 20px; }
+    .plan__name { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+    .plan__price { font-size: 30px; font-weight: 800; margin-bottom: 4px; }
+    .plan__price span { font-size: 15px; font-weight: 400; color: #777; }
+    .plan__desc { font-size: 13px; color: #666; margin-bottom: 20px; }
+    .plan__features { list-style: none; }
+    .plan__features li { font-size: 14px; color: #444; padding: 5px 0; border-bottom: 1px solid #f0f0f0; }
+    .plan__features li::before { content: "✓ "; color: #5865f2; font-weight: 700; }
+
+    /* Policy */
+    .policy { background: #fff; }
+    .policy-box { background: #f8f9ff; border-radius: 12px; padding: 32px; margin-top: 0; }
+    .policy-box h3 { font-size: 16px; font-weight: 700; margin: 20px 0 8px; color: #1a1a2e; }
+    .policy-box h3:first-child { margin-top: 0; }
+    .policy-box p, .policy-box li { font-size: 14px; color: #555; line-height: 1.8; }
+    .policy-box ul { padding-left: 20px; }
+
+    /* Contact / Tokutei */
+    .tokutei { background: #f8f9ff; }
+    .tokutei-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    .tokutei-table th { width: 30%; background: #eef0fb; padding: 12px 16px; text-align: left; font-weight: 600; border: 1px solid #dde1f5; }
+    .tokutei-table td { padding: 12px 16px; border: 1px solid #dde1f5; color: #444; }
+
+    /* Footer */
+    .footer { background: #1a1a2e; color: #8892b0; text-align: center; padding: 24px; font-size: 13px; }
+    .footer a { color: #a5b4fc; text-decoration: none; }
+
+    @media (max-width: 600px) {
+      .hero { padding: 56px 16px; }
+      .section { padding: 48px 16px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Header -->
+<header class="header">
+  <a class="header__logo" href="#">🎯 お題Bot</a>
+  <a class="header__login" href="/index.html">ログイン</a>
+</header>
+
+<!-- Hero -->
+<section class="hero">
+  <div class="hero__tag">Discord Bot SaaS</div>
+  <h1 class="hero__title">Discordコミュニティの<br><span>お題投稿</span>をもっとかんたんに</h1>
+  <p class="hero__desc">お題Bot は、Discord サーバー向けの自動投稿Bot です。お題・スケジュール・タグをウェブ管理画面から操作でき、コミュニティ運営を効率化します。</p>
+  <a class="hero__btn" href="/index.html">管理画面にログイン</a>
+</section>
+
+<!-- Features -->
+<section class="section">
+  <h2 class="section__title">主な機能</h2>
+  <div class="features">
+    <div class="feature">
+      <div class="feature__icon">📋</div>
+      <div class="feature__title">お題管理</div>
+      <div class="feature__desc">画像付きのお題を登録・タグ付け・お気に入り管理。ウェブ画面から一括インポートも可能です。</div>
+    </div>
+    <div class="feature">
+      <div class="feature__icon">🕐</div>
+      <div class="feature__title">スケジュール投稿</div>
+      <div class="feature__desc">曜日・時間を指定して自動投稿。複数チャンネルへの配信スケジュールを柔軟に設定できます。</div>
+    </div>
+    <div class="feature">
+      <div class="feature__icon">📊</div>
+      <div class="feature__title">ダッシュボード</div>
+      <div class="feature__desc">投稿履歴・使用状況をひと目で把握。チームメンバーへの権限管理機能も搭載しています。</div>
+    </div>
+  </div>
+</section>
+
+<!-- Pricing -->
+<div class="pricing-bg">
+  <section class="section" style="padding-bottom: 24px;">
+    <h2 class="section__title">料金プラン</h2>
+  </section>
+  <div class="plans">
+    <div class="plan">
+      <div class="plan__name">Free</div>
+      <div class="plan__price">¥0 <span>/月</span></div>
+      <div class="plan__desc">はじめての方向け</div>
+      <ul class="plan__features">
+        <li>デフォルトお題の自動投稿</li>
+        <li>週1回の投稿スケジュール</li>
+        <li>Discord Bot 操作なし</li>
+        <li>ダッシュボードなし</li>
+      </ul>
+    </div>
+    <div class="plan plan--popular">
+      <div class="plan__badge">人気</div>
+      <div class="plan__name">Light</div>
+      <div class="plan__price">¥600 <span>/月</span></div>
+      <div class="plan__desc">小規模コミュニティ向け</div>
+      <ul class="plan__features">
+        <li>独自お題 100件</li>
+        <li>スケジュール自由設定</li>
+        <li>Discord Bot 操作</li>
+        <li>ダッシュボード利用可</li>
+        <li>容量拡張（+100件 ¥400）</li>
+      </ul>
+    </div>
+    <div class="plan">
+      <div class="plan__name">Pro</div>
+      <div class="plan__price">¥960 <span>/月</span></div>
+      <div class="plan__desc">中規模コミュニティ向け</div>
+      <ul class="plan__features">
+        <li>独自お題 500件</li>
+        <li>スケジュール自由設定</li>
+        <li>Discord Bot 操作</li>
+        <li>ダッシュボード利用可</li>
+        <li>容量拡張（+100件 ¥100）</li>
+        <li>デフォルトお題ON/OFF</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- Cancellation Policy -->
+<section class="section policy">
+  <h2 class="section__title">キャンセル・返金ポリシー</h2>
+  <div class="policy-box">
+    <h3>解約について</h3>
+    <p>いつでもダッシュボードまたは下記お問い合わせ先からサブスクリプションをキャンセルできます。キャンセル後は現在の請求期間の終了日まで引き続きサービスをご利用いただけます。</p>
+
+    <h3>返金について</h3>
+    <p>月額サブスクリプションの性質上、原則として既に支払われた料金の返金は行っておりません。ただし、サービス側の障害等によりサービスが提供できなかった場合は個別にご対応いたします。</p>
+
+    <h3>容量拡張（買い切り）について</h3>
+    <p>容量拡張は一度限りの買い切り課金です。購入後の返金は承っておりません。</p>
+
+    <h3>お問い合わせ</h3>
+    <p>解約・返金に関するご相談は下記メールアドレスまでご連絡ください。</p>
+  </div>
+</section>
+
+<!-- 特定商取引法 -->
+<section class="section tokutei">
+  <h2 class="section__title">特定商取引法に基づく表記</h2>
+  <table class="tokutei-table">
+    <tr><th>販売事業者名</th><td>※ 屋号または氏名を記載してください</td></tr>
+    <tr><th>所在地</th><td>※ 住所を記載してください（請求があった場合に遅滞なく開示します）</td></tr>
+    <tr><th>電話番号</th><td>※ 電話番号を記載してください（請求があった場合に遅滞なく開示します）</td></tr>
+    <tr><th>メールアドレス</th><td>syou0235@gmail.com</td></tr>
+    <tr><th>サービス名</th><td>お題Bot</td></tr>
+    <tr><th>販売価格</th><td>Free: 無料 / Light: 月額 ¥600（税込）/ Pro: 月額 ¥960（税込）</td></tr>
+    <tr><th>支払方法</th><td>クレジットカード（Stripe 経由）</td></tr>
+    <tr><th>支払時期</th><td>毎月自動更新（契約日に応じた日付に自動請求）</td></tr>
+    <tr><th>サービス提供時期</th><td>決済完了後、即時利用可能</td></tr>
+    <tr><th>返品・キャンセル</th><td>月額サブスクリプションのため、原則返金なし。キャンセルは当月末まで有効。</td></tr>
+  </table>
+</section>
+
+<!-- Footer -->
+<footer class="footer">
+  <p>お問い合わせ: <a href="mailto:syou0235@gmail.com">syou0235@gmail.com</a></p>
+  <p style="margin-top:8px">&copy; 2025 お題Bot. All rights reserved.</p>
+</footer>
+
+</body>
+</html>
