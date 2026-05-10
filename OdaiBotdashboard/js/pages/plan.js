@@ -266,10 +266,25 @@ const PlanPage = {
   _bindCancelButton() {
     const btn = document.getElementById('cancel-plan-btn');
     if (!btn) return;
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', async () => {
+      let limitInfo = '';
+      try {
+        const res = await API.getSchedules();
+        const schedules = res.data || [];
+        const latest = schedules.length > 0
+          ? schedules.reduce((a, b) => a.id > b.id ? a : b)
+          : null;
+        const scheduleText = latest
+          ? `<li>スケジュールは最新1件のみ自動投稿（${escapeHtml(latest.channel_name || String(latest.channel_id))} / ${escapeHtml(latest.time)}）</li>`
+          : `<li>スケジュールは最新1件のみ自動投稿（未登録）</li>`;
+        const odaiCount = parseInt(document.querySelector('.capacity-info__used')?.textContent) || 0;
+        const odaiText = `<li>お題の投稿候補が最新10件に制限されます${odaiCount > 10 ? `（現在${odaiCount}件 → 10件）` : ''}</li>`;
+        limitInfo = `<br><br><span style="font-size:13px;color:var(--text-muted)"><strong>期間終了後の制限：</strong><ul style="margin:6px 0 0 16px">${scheduleText}${odaiText}</ul></span>`;
+      } catch (_) {}
+
       Modal.confirm(
         '解約確認',
-        '本当に解約しますか？<br>解約後も現在の請求期間終了日までご利用いただけます。',
+        `本当に解約しますか？<br>解約後も現在の請求期間終了日までご利用いただけます。${limitInfo}`,
         async () => {
           try {
             await API.cancelPlan();

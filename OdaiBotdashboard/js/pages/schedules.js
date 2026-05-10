@@ -4,9 +4,7 @@ const SchedulesPage = {
   _allChannels: [],
 
   render() {
-    const isFree = (localStorage.getItem('plan_name') || 'free') === 'free';
     return Layout.render('スケジュール管理', `
-      ${isFree ? `<p class="text-muted" style="margin-bottom:16px">Freeプランは登録されているスケジュールのうち最新の1件のみ自動投稿されます。</p>` : ''}
       <div class="page-actions">
         <button class="btn btn--primary" id="create-schedule-btn">＋ スケジュール追加</button>
       </div>

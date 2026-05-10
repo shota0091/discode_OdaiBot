@@ -17,16 +17,23 @@ class NotifyServiceImpl(NotifyServiceInterface):
         return bool(row.get("use_default_odai", 1)) if row else False
 
     def select_candidate(self, guild_id: int, channel_id: int | None = None, schedule: dict | None = None):
+        plan_info = self.repo.get_plan_info(guild_id)
+        plan_name = plan_info.get("name", "free")
+
         include_defaults = self._use_default_odai(guild_id)
         candidates = self.repo.load_for_channel(guild_id, channel_id, include_defaults=include_defaults)
         if not candidates and channel_id is not None:
             self.repo.reset_channel_usage(guild_id, channel_id)
             candidates = self.repo.load_for_channel(guild_id, channel_id, include_defaults=include_defaults)
 
-        filtered = [
-            odai for odai in candidates
-            if self._matches_schedule_filter(odai, schedule)
-        ]
+        # Freeプランはタグフィルタを無視（タグ機能自体が使えないため）
+        if plan_name == "free":
+            filtered = candidates
+        else:
+            filtered = [
+                odai for odai in candidates
+                if self._matches_schedule_filter(odai, schedule)
+            ]
         return random.choice(filtered) if filtered else None
 
     def _matches_schedule_filter(self, odai: dict, schedule: dict | None) -> bool:

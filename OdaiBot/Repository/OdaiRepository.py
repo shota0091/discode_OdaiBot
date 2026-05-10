@@ -21,9 +21,21 @@ class OdaiRepository:
         rows = self.db.query(sql, tuple(params))
         return [self._attach_tags(row) for row in rows]
 
+    def get_plan_info(self, guild_id: int) -> dict:
+        """プラン情報を返す。guild_plansがなければfreeのデフォルト値を返す。"""
+        row = self.db.query_one(
+            "SELECT p.name, p.custom_odai_base FROM guild_plans gp JOIN plans p ON gp.plan_id = p.id WHERE gp.guild_id = %s",
+            (guild_id,),
+        )
+        if not row:
+            free = self.db.query_one("SELECT name, custom_odai_base FROM plans WHERE name = 'free'", ())
+            return free or {"name": "free", "custom_odai_base": 10}
+        return row
+
     def load_for_channel(self, guild_id: int, channel_id: int | None, include_defaults: bool = False):
         """チャンネルの odai_usage に含まれない（未投稿の）お題を返す。
         include_defaults=True のとき guild_default_odai のお題も候補に加える。
+        プランのcustom_odai_baseに基づき投稿候補を最新N件に制限する（NULLは無制限）。
         """
         if channel_id is None:
             custom_rows = self.db.query(
@@ -40,6 +52,11 @@ class OdaiRepository:
             )
 
         rows = list(custom_rows)
+
+        plan_info = self.get_plan_info(guild_id)
+        limit = plan_info.get("custom_odai_base")  # None = 無制限
+        if limit is not None and len(rows) > limit:
+            rows = sorted(rows, key=lambda r: r["id"], reverse=True)[:limit]
 
         if include_defaults:
             if channel_id is None:
