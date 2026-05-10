@@ -6,8 +6,12 @@ const API = {
     if (this._token()) h['Authorization'] = `Bearer ${this._token()}`;
     return h;
   },
-  async _fetch(path, options = {}) {
+  async _fetch(path, options = {}, _retries = 3) {
     const res = await fetch(`${CONFIG.API_BASE}${path}`, options);
+    if (res.status === 429 && _retries > 0) {
+      await new Promise(r => setTimeout(r, 1000));
+      return this._fetch(path, options, _retries - 1);
+    }
     if (res.status === 204) return null;
     let data;
     try {
