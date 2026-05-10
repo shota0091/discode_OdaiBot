@@ -9,7 +9,12 @@ const API = {
   async _fetch(path, options = {}) {
     const res = await fetch(`${CONFIG.API_BASE}${path}`, options);
     if (res.status === 204) return null;
-    const data = await res.json();
+    let data;
+    try {
+      data = await res.json();
+    } catch (_) {
+      throw new Error(`サーバーエラーが発生しました (HTTP ${res.status})`);
+    }
     if (!res.ok) {
       const msg = data.detail || data.error?.message || 'エラーが発生しました';
       throw new Error(typeof msg === 'string' ? msg : JSON.stringify(msg));
