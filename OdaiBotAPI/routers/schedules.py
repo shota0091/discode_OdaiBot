@@ -3,7 +3,7 @@ import json
 
 from fastapi import APIRouter, Depends, HTTPException, Response
 
-from ..deps import db, get_current_user, require_admin
+from ..deps import db, get_current_user, get_guild_plan, require_admin
 from ..schemas import ScheduleRequest
 
 router = APIRouter(prefix="/api/guilds/{guild_id}/schedules", tags=["schedules"])
@@ -34,6 +34,11 @@ def list_schedules(guild_id: int):
 
 @router.post("", dependencies=[Depends(get_current_user)], status_code=201)
 def create_schedule(guild_id: int, payload: ScheduleRequest):
+    plan_name = get_guild_plan(guild_id).get("plan_name", "free")
+    if plan_name == "free":
+        count = db.query_one("SELECT COUNT(*) AS cnt FROM schedules WHERE guild_id = %s", (guild_id,))["cnt"]
+        if count >= 1:
+            raise HTTPException(status_code=400, detail="Freeプランはスケジュールを1件しか登録できません")
     _validate_schedule(payload)
     tag_list_json = json.dumps(payload.tag_list or [], ensure_ascii=False)
     cursor = db.execute(

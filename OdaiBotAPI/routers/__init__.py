@@ -7,4 +7,3 @@ from .settings import router as settings_router
 from .stripe import router as stripe_router
 from .summary import router as summary_router
 from .test_post import router as test_post_router
-from .plan_schedule import router as plan_schedule_router

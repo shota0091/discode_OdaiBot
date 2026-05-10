@@ -140,24 +140,6 @@ const API = {
     return this._fetch(`/api/guilds/${this._guildId()}/plan`);
   },
 
-  // Free plan schedule
-  async getPlanSchedule() {
-    return this._fetch(`/api/guilds/${this._guildId()}/plan-schedule`, { headers: this._headers() });
-  },
-  async setPlanSchedule(channelId, time) {
-    return this._fetch(`/api/guilds/${this._guildId()}/plan-schedule`, {
-      method: 'POST',
-      headers: this._headers(),
-      body: JSON.stringify({ channel_id: channelId, time }),
-    });
-  },
-  async deletePlanSchedule(scheduleId) {
-    return this._fetch(`/api/guilds/${this._guildId()}/plan-schedule/${scheduleId}`, {
-      method: 'DELETE',
-      headers: this._headers(),
-    });
-  },
-
   async subscribePlan(plan, successUrl, cancelUrl) {
     return this._fetch(`/api/guilds/${this._guildId()}/plan/subscribe`, {
       method: 'POST',

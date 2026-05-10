@@ -16,9 +16,7 @@ const Layout = {
       { href: '#/dashboard', label: 'ダッシュボード', icon: '🏠' },
       { href: '#/dashboard/plan', label: 'プラン', icon: '💳' },
       { href: '#/dashboard/odai', label: 'お題管理', icon: '🖼️' },
-      ...(!isFree ? [
-        { href: '#/dashboard/schedules', label: 'スケジュール管理', icon: '📅' },
-      ] : []),
+      { href: '#/dashboard/schedules', label: 'スケジュール管理', icon: '📅' },
       ...(isPro ? [
         { href: '#/dashboard/tags', label: 'タグ管理', icon: '🏷️' },
       ] : []),

@@ -10,19 +10,12 @@ const PlanPage = {
     const isFree = storedPlanName === 'free';
 
     try {
-      const baseReqs = [API.getPlan(), API.getSummary(), API.getSettings()];
-      const extraReqs = isFree
-        ? [API.getPlanSchedule(), API.getChannels()]
-        : [Promise.resolve(null), Promise.resolve(null)];
-
-      const [planRes, summaryRes, settingsRes, scheduleRes, channelsRes] =
-        await Promise.all([...baseReqs, ...extraReqs]);
+      const [planRes, summaryRes, settingsRes] =
+        await Promise.all([API.getPlan(), API.getSummary(), API.getSettings()]);
 
       const p = planRes.data;
       const odaiCount = summaryRes.data.odai_count ?? 0;
       const useDefault = settingsRes.data.use_default_odai;
-      const schedule = scheduleRes?.data ?? null;
-      const channels = channelsRes?.data ?? [];
 
       const planLabels = { free: 'Free', light: 'Light', pro: 'Pro', enterprise: 'Enterprise' };
       const planColors = { free: 'disabled', light: 'info', pro: 'primary', enterprise: 'success' };
@@ -64,50 +57,10 @@ const PlanPage = {
                 <td>${formatDate(p.current_period_end)}</td>
               </tr>
               ` : ''}
-              <tr>
-                <th>Discord 操作</th>
-                <td>${p.has_discord_op ? '<span class="badge badge--success">有効</span>' : '<span class="badge badge--disabled">無効</span>'}</td>
-              </tr>
             </tbody>
           </table>
         </div>
 
-        ${isFree ? `
-        <div class="section" id="schedule-section">
-          <h2 class="section__title">投稿スケジュール</h2>
-          <p class="text-muted" style="margin-bottom:12px">デフォルトお題の自動投稿スケジュールを1件設定できます。</p>
-          ${isAdmin ? `
-          <form id="schedule-form" class="form form--inline">
-            <div class="form__group">
-              <label class="form__label">チャンネル</label>
-              <select id="sch-channel" class="form__select">
-                <option value="">-- 選択 --</option>
-                ${channels.map(c => `<option value="${escapeHtml(c.channel_id)}" ${schedule && String(schedule.channel_id) === String(c.channel_id) ? 'selected' : ''}>${escapeHtml(c.name)}</option>`).join('')}
-              </select>
-            </div>
-            <div class="form__group">
-              <label class="form__label">時刻</label>
-              <input type="time" id="sch-time" class="form__input" value="${schedule ? escapeHtml(schedule.time) : '08:00'}">
-            </div>
-            <div id="sch-error" class="form__error" hidden></div>
-            <div class="form__actions">
-              <button type="submit" class="btn btn--primary" id="sch-save-btn">保存</button>
-              ${schedule ? `<button type="button" class="btn btn--danger btn--sm" id="sch-delete-btn">削除</button>` : ''}
-            </div>
-          </form>
-          ` : `
-          ${schedule ? `
-          <table class="table table--info">
-            <tbody>
-              <tr><th>チャンネル</th><td>${escapeHtml(channels.find(c => String(c.channel_id) === String(schedule.channel_id))?.name || schedule.channel_id)}</td></tr>
-              <tr><th>時刻</th><td>${escapeHtml(schedule.time)}</td></tr>
-              <tr><th>状態</th><td><span class="badge badge--${schedule.enabled ? 'success' : 'disabled'}">${schedule.enabled ? '有効' : '無効'}</span></td></tr>
-            </tbody>
-          </table>
-          ` : '<p class="text-muted">スケジュールは未設定です。管理者に設定を依頼してください。</p>'}
-          `}
-        </div>
-        ` : ''}
 
         ${!isFree ? `
         <div class="section">
@@ -205,7 +158,6 @@ const PlanPage = {
         ` : ''}
       `;
 
-      if (isAdmin && isFree) this._bindScheduleForm(schedule);
       if (isAdmin && p.can_expand_capacity) this._bindExpandButton();
       if (isAdmin && isPro) this._bindDefaultOdaiForm();
       if (isAdmin && planName !== 'free' && planName !== 'enterprise' && p.status === 'active') this._bindCancelButton();
@@ -331,43 +283,4 @@ const PlanPage = {
     });
   },
 
-  _bindScheduleForm(schedule) {
-    const form = document.getElementById('schedule-form');
-    if (!form) return;
-
-    form.addEventListener('submit', async e => {
-      e.preventDefault();
-      const errorEl = document.getElementById('sch-error');
-      errorEl.hidden = true;
-      const btn = document.getElementById('sch-save-btn');
-      btn.disabled = true;
-      try {
-        const channelId = document.getElementById('sch-channel').value;
-        const time = document.getElementById('sch-time').value;
-        if (!channelId) throw new Error('チャンネルを選択してください');
-        await API.setPlanSchedule(channelId, time);
-        Toast.success('スケジュールを保存しました');
-        Router.navigate(location.hash);
-      } catch (err) {
-        errorEl.textContent = err.message;
-        errorEl.hidden = false;
-      } finally {
-        btn.disabled = false;
-      }
-    });
-
-    const deleteBtn = document.getElementById('sch-delete-btn');
-    if (deleteBtn && schedule) {
-      deleteBtn.addEventListener('click', async () => {
-        if (!confirm('スケジュールを削除しますか？')) return;
-        try {
-          await API.deletePlanSchedule(schedule.id);
-          Toast.success('スケジュールを削除しました');
-          Router.navigate(location.hash);
-        } catch (err) {
-          Toast.error(err.message);
-        }
-      });
-    }
-  },
 };
