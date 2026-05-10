@@ -132,8 +132,12 @@ class TestStripeWebhook:
         call_args = deps.db.execute.call_args[0]
         assert "past_due" in call_args[1]
 
-    def test_subscription_deleted_sets_canceled(self, anon_client):
-        subscription = {"id": "sub_xxx", "status": "canceled", "current_period_end": None}
+    def test_subscription_deleted_downgrades_to_free(self, anon_client):
+        subscription = {"id": "sub_xxx"}
+        deps.db.query_one.side_effect = [
+            {"guild_id": GUILD_ID},              # guild_plans WHERE stripe_subscription_id
+            {"id": 5, "custom_odai_base": 10},   # plans WHERE name='free'
+        ]
         deps.db.execute.return_value = make_cursor()
 
         with patch("OdaiBotAPI.routers.stripe.stripe") as mock_stripe:
@@ -143,9 +147,24 @@ class TestStripeWebhook:
             }
             res = anon_client.post(self._url, content=b"{}", headers={"stripe-signature": "ok"})
         assert res.status_code == 200
-        # "canceled" はパラメータとして渡される（call_args[0]は(sql, params)）
-        call_args = deps.db.execute.call_args[0]
-        assert "canceled" in call_args[1]  # params tuple に "canceled" が含まれる
+        call_sql    = deps.db.execute.call_args[0][0]
+        call_params = deps.db.execute.call_args[0][1]
+        assert "active" in call_sql    # SQL に status='active' が含まれる
+        assert 5 in call_params        # free plan の id がセットされる
+        assert 10 in call_params       # custom_odai_capacity = 10
+
+    def test_subscription_deleted_noop_when_guild_not_found(self, anon_client):
+        subscription = {"id": "sub_unknown"}
+        deps.db.query_one.return_value = None  # guild not found
+
+        with patch("OdaiBotAPI.routers.stripe.stripe") as mock_stripe:
+            mock_stripe.Webhook.construct_event.return_value = {
+                "type": "customer.subscription.deleted",
+                "data": {"object": subscription},
+            }
+            res = anon_client.post(self._url, content=b"{}", headers={"stripe-signature": "ok"})
+        assert res.status_code == 200
+        deps.db.execute.assert_not_called()
 
     def test_unknown_event_type_returns_200(self, anon_client):
         with patch("OdaiBotAPI.routers.stripe.stripe") as mock_stripe:

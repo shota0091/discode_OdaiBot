@@ -13,9 +13,9 @@ from OdaiBotAPI.deps import hash_password
 from .conftest import BASE, GUILD_ID, make_cursor
 
 _FREE_PLAN = {
-    "plan_name": "free", "has_dashboard": 0, "has_discord_op": 0,
-    "can_expand_capacity": 0, "custom_odai_max": 0,
-    "custom_odai_capacity": 0, "status": "active",
+    "plan_name": "free", "has_dashboard": 1, "has_discord_op": 0,
+    "can_expand_capacity": 0, "custom_odai_max": 10,
+    "custom_odai_capacity": 10, "status": "active",
 }
 _LIGHT_PLAN = {
     "plan_name": "light", "has_dashboard": 1, "has_discord_op": 1,
@@ -38,14 +38,24 @@ class TestDashboardPlanGate:
     def _login_payload(self, password="pass12345"):
         return {"username": "admin_user", "password": password}
 
-    def test_free_plan_login_returns_403(self, anon_client):
-        # guild_plans → None → フォールバック free プラン
+    def test_free_plan_login_succeeds(self, anon_client):
+        """Free プランも has_dashboard=1 なのでログイン可。"""
+        password = "pass12345"
         deps.db.query_one.side_effect = [
             None,           # require_dashboard_plan: guild_plans JOIN → not found
-            _FREE_PLAN,     # require_dashboard_plan: plans WHERE free
+            _FREE_PLAN,     # require_dashboard_plan: plans WHERE free (has_dashboard=1)
+            {               # login: user lookup
+                "id": 1, "username": "admin_user",
+                "display_name": None,
+                "password_hash": hash_password(password),
+                "login_attempts": 0, "locked_until": None,
+                "login_locked": 0, "role": "admin",
+            },
+            None,           # ban check
         ]
-        res = anon_client.post(self._url, json=self._login_payload())
-        assert res.status_code == 403
+        deps.db.execute.return_value = make_cursor()
+        res = anon_client.post(self._url, json=self._login_payload(password))
+        assert res.status_code == 200
 
     def test_light_plan_login_succeeds(self, anon_client):
         password = "pass12345"
@@ -83,7 +93,7 @@ class TestDashboardPlanGate:
 
 
 # ─────────────────────────────────────────────────────────────
-# require_pro_plan — お題・タグ・スケジュールゲート
+# require_pro_plan — タグゲート（お題・スケジュールは全プラン解放済み）
 # ─────────────────────────────────────────────────────────────
 class TestProPlanGate:
     def _mock_free(self):
@@ -95,28 +105,26 @@ class TestProPlanGate:
     def _mock_pro(self):
         deps.db.query_one.return_value = _PRO_PLAN
 
-    # --- odai ---
-    def test_odai_list_free_returns_403(self, gate_client):
-        self._mock_free()
-        res = gate_client.get(f"{BASE}/odai/")
-        assert res.status_code == 403
-
-    def test_odai_list_light_returns_403(self, gate_client):
-        self._mock_light()
-        res = gate_client.get(f"{BASE}/odai/")
-        assert res.status_code == 403
-
-    def test_odai_list_pro_passes(self, gate_client):
-        # require_pro_plan が query_one を1回、list_odai の total_channels 用に1回消費する
-        deps.db.query_one.side_effect = [
-            _PRO_PLAN,   # require_pro_plan → get_guild_plan
-            {"cnt": 0},  # list_odai → total_channels
-        ]
+    # --- odai（全プラン解放）---
+    def test_odai_list_free_succeeds(self, gate_client):
+        deps.db.query_one.return_value = {"cnt": 0}
         deps.db.query.return_value = []
         res = gate_client.get(f"{BASE}/odai/")
         assert res.status_code == 200
 
-    # --- tags ---
+    def test_odai_list_light_succeeds(self, gate_client):
+        deps.db.query_one.return_value = {"cnt": 0}
+        deps.db.query.return_value = []
+        res = gate_client.get(f"{BASE}/odai/")
+        assert res.status_code == 200
+
+    def test_odai_list_pro_succeeds(self, gate_client):
+        deps.db.query_one.return_value = {"cnt": 0}
+        deps.db.query.return_value = []
+        res = gate_client.get(f"{BASE}/odai/")
+        assert res.status_code == 200
+
+    # --- tags（Pro以上のみ）---
     def test_tags_list_free_returns_403(self, gate_client):
         self._mock_free()
         res = gate_client.get(f"{BASE}/tags/")
@@ -133,19 +141,18 @@ class TestProPlanGate:
         res = gate_client.get(f"{BASE}/tags/")
         assert res.status_code == 200
 
-    # --- schedules ---
-    def test_schedules_list_free_returns_403(self, gate_client):
-        self._mock_free()
+    # --- schedules（全プラン解放）---
+    def test_schedules_list_free_succeeds(self, gate_client):
+        deps.db.query.return_value = []
         res = gate_client.get(f"{BASE}/schedules/")
-        assert res.status_code == 403
+        assert res.status_code == 200
 
-    def test_schedules_list_light_returns_403(self, gate_client):
-        self._mock_light()
+    def test_schedules_list_light_succeeds(self, gate_client):
+        deps.db.query.return_value = []
         res = gate_client.get(f"{BASE}/schedules/")
-        assert res.status_code == 403
+        assert res.status_code == 200
 
-    def test_schedules_list_pro_passes(self, gate_client):
-        deps.db.query_one.return_value = _PRO_PLAN
+    def test_schedules_list_pro_succeeds(self, gate_client):
         deps.db.query.return_value = []
         res = gate_client.get(f"{BASE}/schedules/")
         assert res.status_code == 200

@@ -50,8 +50,11 @@ class TestCreateSchedule:
     _url = f"{BASE}/schedules/"
 
     def test_success(self, admin_client):
+        deps.db.query_one.side_effect = [
+            {"plan_name": "pro"},  # get_guild_plan
+            _SCHEDULE_ROW,         # after INSERT
+        ]
         deps.db.execute.return_value = make_cursor(1)
-        deps.db.query_one.return_value = _SCHEDULE_ROW
 
         res = admin_client.post(self._url, json=_SCHEDULE_PAYLOAD)
         assert res.status_code == 201
@@ -74,12 +77,36 @@ class TestCreateSchedule:
 
     def test_allow_mode_with_tags_succeeds(self, admin_client):
         row = {**_SCHEDULE_ROW, "tag_mode": "allow", "tag_list": json.dumps(["日常"])}
+        deps.db.query_one.side_effect = [
+            {"plan_name": "pro"},  # get_guild_plan
+            row,                   # after INSERT
+        ]
         deps.db.execute.return_value = make_cursor(1)
-        deps.db.query_one.return_value = row
 
         payload = {**_SCHEDULE_PAYLOAD, "tag_mode": "allow", "tag_list": ["日常"]}
         res = admin_client.post(self._url, json=payload)
         assert res.status_code == 201
+
+    def test_free_plan_can_create_first_schedule(self, admin_client):
+        deps.db.query_one.side_effect = [
+            {"plan_name": "free"},  # get_guild_plan
+            {"cnt": 0},             # COUNT(*) → 0件
+            _SCHEDULE_ROW,          # after INSERT
+        ]
+        deps.db.execute.return_value = make_cursor(1)
+
+        res = admin_client.post(self._url, json=_SCHEDULE_PAYLOAD)
+        assert res.status_code == 201
+
+    def test_free_plan_cannot_create_second_schedule(self, admin_client):
+        deps.db.query_one.side_effect = [
+            {"plan_name": "free"},  # get_guild_plan
+            {"cnt": 1},             # COUNT(*) → すでに1件
+        ]
+
+        res = admin_client.post(self._url, json=_SCHEDULE_PAYLOAD)
+        assert res.status_code == 400
+        assert "Freeプラン" in res.json()["detail"]
 
 
 class TestUpdateSchedule:
