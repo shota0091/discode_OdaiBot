@@ -1,4 +1,4 @@
-"""オーナーサーバーを Pro プラン（無制限・無課金）で登録するスクリプト。
+"""オーナーサーバーを Enterprise プラン（無制限・無課金）で登録するスクリプト。
 
 実行方法（プロジェクトルートから）:
     python setup/seed_owner_guilds.py
@@ -26,11 +26,11 @@ OWNER_GUILD_IDS = [
 def main() -> None:
     db = MySQLDatabase()
 
-    pro = db.query_one("SELECT id FROM plans WHERE name = 'pro'", ())
-    if not pro:
-        print("❌ plans テーブルに 'pro' が見つかりません。先に setup_db.py を実行してください。")
+    enterprise = db.query_one("SELECT id FROM plans WHERE name = 'enterprise'", ())
+    if not enterprise:
+        print("❌ plans テーブルに 'enterprise' が見つかりません。先に setup_db.py を実行してください。")
         sys.exit(1)
-    pro_id = pro["id"]
+    enterprise_id = enterprise["id"]
 
     for guild_id in OWNER_GUILD_IDS:
         existing = db.query_one("SELECT id, plan_id FROM guild_plans WHERE guild_id = %s", (guild_id,))
@@ -38,18 +38,18 @@ def main() -> None:
             db.execute(
                 "UPDATE guild_plans SET plan_id = %s, custom_odai_capacity = NULL, status = 'active', "
                 "stripe_customer_id = NULL, stripe_subscription_id = NULL WHERE guild_id = %s",
-                (pro_id, guild_id),
+                (enterprise_id, guild_id),
                 commit=True,
             )
-            print(f"✅ 更新: guild_id={guild_id} → Pro（無制限）")
+            print(f"✅ 更新: guild_id={guild_id} → Enterprise（無制限）")
         else:
             db.execute(
                 "INSERT INTO guild_plans (guild_id, plan_id, custom_odai_capacity, status) "
                 "VALUES (%s, %s, NULL, 'active')",
-                (guild_id, pro_id),
+                (guild_id, enterprise_id),
                 commit=True,
             )
-            print(f"✅ 登録: guild_id={guild_id} → Pro（無制限）")
+            print(f"✅ 登録: guild_id={guild_id} → Enterprise（無制限）")
 
     print("\n完了。")
 
