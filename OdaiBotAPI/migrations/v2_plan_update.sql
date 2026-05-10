@@ -31,6 +31,12 @@ JOIN plans p ON gp.plan_id = p.id
 SET gp.custom_odai_capacity = 10
 WHERE p.name = 'free' AND gp.custom_odai_capacity = 0;
 
+-- 既存のLightプランguildの容量がNULLの場合は100に更新
+UPDATE guild_plans gp
+JOIN plans p ON gp.plan_id = p.id
+SET gp.custom_odai_capacity = 100
+WHERE p.name = 'light' AND gp.custom_odai_capacity IS NULL;
+
 -- 既存のProプランguildの容量がNULLの場合は1000に更新
 UPDATE guild_plans gp
 JOIN plans p ON gp.plan_id = p.id
