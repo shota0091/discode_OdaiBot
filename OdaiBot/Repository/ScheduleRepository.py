@@ -7,20 +7,19 @@ class ScheduleRepository(BaseRepositoryInterface):
         self.db = db
 
     def load(self, guild_id: int):
-        sql = "SELECT * FROM schedules WHERE guild_id = %s AND enabled = 1"
-        
-        # --- ここで確認 ---
-        print(f"DEBUG: 実行SQL: {sql} | パラメータ: {guild_id}")
+        plan_row = self.db.query_one(
+            "SELECT p.name AS plan_name FROM guild_plans gp JOIN plans p ON gp.plan_id = p.id WHERE gp.guild_id = %s",
+            (guild_id,),
+        )
+        plan_name = (plan_row or {}).get("plan_name", "free")
+
+        if plan_name == "free":
+            sql = "SELECT * FROM schedules WHERE guild_id = %s AND enabled = 1 ORDER BY id DESC LIMIT 1"
+        else:
+            sql = "SELECT * FROM schedules WHERE guild_id = %s AND enabled = 1"
+
         rows = self.db.query(sql, (guild_id,))
-        print(f"DEBUG: DBから返ってきた生データ: {rows}") 
-        # ----------------
-        
         return [self._deserialize(row) for row in rows]
-        # rows = self.db.query(
-        #     "SELECT * FROM schedules WHERE guild_id = %s AND enabled = 1",
-        #     (guild_id,),
-        # )
-        # return [self._deserialize(row) for row in rows]
 
     def save(self, schedule: dict):
         tag_list = json.dumps(schedule.get("tag_list", []), ensure_ascii=False)

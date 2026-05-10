@@ -115,9 +115,17 @@ def _handle_subscription_updated(subscription: dict):
 
 def _handle_subscription_deleted(subscription: dict):
     sub_id = subscription.get("id")
+    gp = db.query_one("SELECT guild_id FROM guild_plans WHERE stripe_subscription_id = %s", (sub_id,))
+    if not gp:
+        return
+    guild_id = gp["guild_id"]
+    free_plan = db.query_one("SELECT id, custom_odai_base FROM plans WHERE name = 'free'", ())
+    if not free_plan:
+        return
     db.execute(
-        "UPDATE guild_plans SET status = %s WHERE stripe_subscription_id = %s",
-        ("canceled", sub_id),
+        "UPDATE guild_plans SET plan_id = %s, custom_odai_capacity = %s, status = 'active', "
+        "stripe_customer_id = NULL, stripe_subscription_id = NULL WHERE guild_id = %s",
+        (free_plan["id"], free_plan["custom_odai_base"] or 0, guild_id),
         commit=True,
     )
 
