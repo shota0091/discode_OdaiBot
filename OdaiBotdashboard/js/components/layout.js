@@ -10,19 +10,22 @@ const Layout = {
 
     const planName = localStorage.getItem('plan_name') || 'free';
     const isPro = planName === 'pro' || planName === 'enterprise';
+    const isFree = planName === 'free';
 
     const navItems = [
       { href: '#/dashboard', label: 'ダッシュボード', icon: '🏠' },
       { href: '#/dashboard/plan', label: 'プラン', icon: '💳' },
-      ...(isPro ? [
-        { href: '#/dashboard/odai', label: 'お題管理', icon: '🖼️' },
-        { href: '#/dashboard/tags', label: 'タグ管理', icon: '🏷️' },
+      { href: '#/dashboard/odai', label: 'お題管理', icon: '🖼️' },
+      ...(!isFree ? [
         { href: '#/dashboard/schedules', label: 'スケジュール管理', icon: '📅' },
-        { href: '#/dashboard/settings', label: '設定', icon: '⚙️' },
-        ...(isAdmin ? [
-          { href: '#/dashboard/users', label: 'ユーザー管理', icon: '👥' },
-          { href: '#/dashboard/invites', label: '招待管理', icon: '🔗' },
-        ] : []),
+      ] : []),
+      ...(isPro ? [
+        { href: '#/dashboard/tags', label: 'タグ管理', icon: '🏷️' },
+      ] : []),
+      { href: '#/dashboard/settings', label: '設定', icon: '⚙️' },
+      ...(isAdmin ? [
+        { href: '#/dashboard/users', label: 'ユーザー管理', icon: '👥' },
+        { href: '#/dashboard/invites', label: '招待管理', icon: '🔗' },
       ] : []),
     ];
 
