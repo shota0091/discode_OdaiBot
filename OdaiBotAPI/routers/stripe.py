@@ -268,6 +268,35 @@ def dashboard_expand_checkout(
     return {"url": session.url}
 
 
+class DashboardSubscribeRequest(BaseModel):
+    plan: str
+    success_url: str
+    cancel_url: str
+
+
+@router.post("/api/guilds/{guild_id}/plan/subscribe")
+def dashboard_subscribe(
+    guild_id: int,
+    payload: DashboardSubscribeRequest,
+    _user: dict = Depends(require_admin),
+):
+    if payload.plan not in ("light", "pro"):
+        raise HTTPException(status_code=400, detail="プランは light または pro を指定してください")
+
+    plan = db.query_one("SELECT * FROM plans WHERE name = %s", (payload.plan,))
+    if not plan or not plan.get("stripe_price_id"):
+        raise HTTPException(status_code=400, detail="有効なプランが見つかりません（stripe_price_id 未設定）")
+
+    session = stripe.checkout.Session.create(
+        mode="subscription",
+        line_items=[{"price": plan["stripe_price_id"], "quantity": 1}],
+        metadata={"guild_id": str(guild_id), "plan": payload.plan, "type": "subscription"},
+        success_url=payload.success_url,
+        cancel_url=payload.cancel_url,
+    )
+    return {"url": session.url}
+
+
 @router.post("/api/guilds/{guild_id}/plan/cancel")
 def cancel_plan(guild_id: int, _user: dict = Depends(require_admin)):
     gp = db.query_one(

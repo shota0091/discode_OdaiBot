@@ -1,4 +1,3 @@
-import hashlib
 import os
 import sys
 import secrets
@@ -21,12 +20,6 @@ from Factory.OdaiFactory import OdaiFactory
 TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 DASHBOARD_BASE_URL = os.getenv("DASHBOARD_BASE_URL", "http://localhost:3000")
 INVITE_EXPIRE_HOURS = int(os.getenv("INVITE_EXPIRE_HOURS", "24"))
-API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")
-BOT_INTERNAL_SECRET = os.getenv("BOT_INTERNAL_SECRET", "")
-
-def _api_headers() -> dict:
-    return {"X-Bot-Secret": BOT_INTERNAL_SECRET}
-
 
 def _get_plan_row(guild_id: int, db) -> dict:
     """プラン情報を DB から取得。レコードなしは free 扱い。"""
@@ -53,17 +46,6 @@ intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 # ---- Slash command ----
-
-@bot.tree.command(name="ping", description="Test bot")
-async def ping(interaction: discord.Interaction):
-    await interaction.response.send_message("pong!")
-
-
-def hash_password(password: str) -> str:
-    salt = secrets.token_hex(16)
-    key = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt.encode("utf-8"), 120_000)
-    return f"{salt}${key.hex()}"
-
 
 def make_token() -> str:
     return secrets.token_urlsafe(32)
@@ -145,7 +127,7 @@ async def send_odai(interaction: discord.Interaction, channel: discord.TextChann
 
     if not _has_discord_op(interaction.guild_id, factory.db):
         await interaction.response.send_message(
-            "⚠️ このコマンドは Light プラン以上でご利用いただけます。\n`/subscribe` でプランを確認してください。",
+            "⚠️ このコマンドは Light プラン以上でご利用いただけます。Dashboard からプランをご変更ください。",
             ephemeral=True,
         )
         return
@@ -159,83 +141,6 @@ async def send_odai(interaction: discord.Interaction, channel: discord.TextChann
         await interaction.followup.send("✅ お題を送信しました", ephemeral=True)
     else:
         await interaction.followup.send(f"❌ 投稿に失敗しました: {payload}", ephemeral=True)
-
-# ---- Plan コマンド（全プラン共通）----
-
-@bot.tree.command(name="plan", description="現在のプラン・お題残枠・次回更新日を表示します")
-@app_commands.default_permissions(administrator=True)
-async def show_plan(interaction: discord.Interaction):
-    factory = OdaiFactory(interaction.guild_id)
-    plan = _get_plan_row(interaction.guild_id, factory.db)
-
-    plan_name = (plan.get("plan_name") or "free").upper()
-    cap = plan.get("custom_odai_capacity")
-    status = plan.get("status", "active")
-    period_end = plan.get("current_period_end")
-
-    current_row = factory.db.query_one(
-        "SELECT COUNT(*) AS cnt FROM odai WHERE guild_id = %s AND deleted_at IS NULL",
-        (interaction.guild_id,),
-    )
-    current = current_row["cnt"] if current_row else 0
-
-    if cap is None:
-        capacity_str = f"{current} 件（無制限）"
-    elif cap == 0:
-        capacity_str = "独自お題不可"
-    else:
-        capacity_str = f"{current} / {cap} 件（残り {cap - current} 件）"
-
-    period_str = str(period_end)[:10] if period_end else "—"
-
-    await interaction.response.send_message(
-        f"📋 **プラン情報**\n"
-        f"プラン: **{plan_name}**\n"
-        f"独自お題: {capacity_str}\n"
-        f"次回更新: {period_str}\n"
-        f"ステータス: {status}",
-        ephemeral=True,
-    )
-
-
-@bot.tree.command(name="subscribe", description="プランを購読します（Stripe の決済ページを DM で送付）")
-@app_commands.default_permissions(administrator=True)
-@app_commands.describe(plan="購読するプラン（light または pro）")
-@app_commands.choices(plan=[
-    app_commands.Choice(name="Light — ¥600/月", value="light"),
-    app_commands.Choice(name="Pro  — ¥960/月", value="pro"),
-])
-async def subscribe(interaction: discord.Interaction, plan: str):
-    import httpx
-    await interaction.response.defer(ephemeral=True)
-    success_url = f"{DASHBOARD_BASE_URL.rstrip('/')}#/subscribe/success"
-    cancel_url = f"{DASHBOARD_BASE_URL.rstrip('/')}#/subscribe/cancel"
-    try:
-        async with httpx.AsyncClient() as client:
-            res = await client.post(
-                f"{API_BASE_URL}/api/stripe/checkout",
-                json={"guild_id": interaction.guild_id, "plan": plan,
-                      "success_url": success_url, "cancel_url": cancel_url},
-                headers=_api_headers(),
-                timeout=10,
-            )
-        if res.status_code != 200:
-            await interaction.followup.send(f"❌ Checkout URL の生成に失敗しました: {res.text}", ephemeral=True)
-            return
-        url = res.json().get("url", "")
-        try:
-            await interaction.user.send(
-                f"✅ **{plan.upper()} プランの決済ページ**\n\n{url}\n\n"
-                "このリンクから決済を完了してください。有効期限は約24時間です。"
-            )
-            await interaction.followup.send("📬 DM に決済リンクを送りました。", ephemeral=True)
-        except discord.Forbidden:
-            await interaction.followup.send(
-                f"📬 DM が送れませんでした。直接このリンクをご利用ください:\n{url}", ephemeral=True
-            )
-    except Exception as e:
-        await interaction.followup.send(f"❌ エラーが発生しました: {e}", ephemeral=True)
-
 
 # ---- Scheduler ----
 
@@ -254,9 +159,6 @@ async def odai_schedule_loop():
             (guild.id, guild.name),
             commit=True,
         )
-
-        if not _has_discord_op(guild.id, factory.db):
-            continue
 
         schedule_service = factory.getScheduleService()
         print(f"🔎 Checking schedule for guild: {guild.name} ({guild.id})")

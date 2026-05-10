@@ -677,6 +677,10 @@ code { background: var(--bg); padding: 2px 6px; border-radius: 4px; font-family:
 .plan-expand-hint code { background: var(--bg); padding: 1px 5px; border-radius: 3px; font-family: monospace; }
 .expand-action { margin-top: 12px; }
 
+/* Plan change list */
+.plan-change-list { display: flex; flex-direction: column; gap: 12px; }
+.plan-change-item { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); gap: 12px; }
+
 /* Extra small (≤ 400px) */
 @media (max-width: 400px) {
   .summary-grid { grid-template-columns: 1fr; }

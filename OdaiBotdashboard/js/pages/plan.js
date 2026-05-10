@@ -170,6 +170,32 @@ const PlanPage = {
         </div>
         ` : ''}
 
+        ${isAdmin && planName !== 'enterprise' ? `
+        <div class="section">
+          <h2 class="section__title">プランを変更する</h2>
+          <div class="plan-change-list">
+            ${planName !== 'light' ? `
+            <div class="plan-change-item">
+              <div>
+                <strong>Light</strong> <span class="text-muted">¥600/月</span>
+                <p class="text-muted" style="font-size:12px;margin-top:2px">独自お題100件・スケジュール自由設定</p>
+              </div>
+              <button class="btn btn--secondary btn--sm" data-plan="light">変更する</button>
+            </div>
+            ` : ''}
+            ${planName !== 'pro' ? `
+            <div class="plan-change-item">
+              <div>
+                <strong>Pro</strong> <span class="text-muted">¥960/月</span>
+                <p class="text-muted" style="font-size:12px;margin-top:2px">独自お題1000件・タグ機能</p>
+              </div>
+              <button class="btn btn--primary btn--sm" data-plan="pro">変更する</button>
+            </div>
+            ` : ''}
+          </div>
+        </div>
+        ` : ''}
+
         ${isAdmin && planName !== 'free' && planName !== 'enterprise' && p.status === 'active' ? `
         <div class="section">
           <h2 class="section__title">解約</h2>
@@ -183,6 +209,7 @@ const PlanPage = {
       if (isAdmin && p.can_expand_capacity) this._bindExpandButton();
       if (isAdmin && isPro) this._bindDefaultOdaiForm();
       if (isAdmin && planName !== 'free' && planName !== 'enterprise' && p.status === 'active') this._bindCancelButton();
+      if (isAdmin && planName !== 'enterprise') this._bindPlanChangeButtons();
     } catch (err) {
       document.getElementById('plan-root').innerHTML = `<p class="text-error">${escapeHtml(err.message)}</p>`;
     }
@@ -258,6 +285,28 @@ const PlanPage = {
           errorEl.hidden = false;
           confirmBtn.disabled = false;
         }
+      });
+    });
+  },
+
+  _bindPlanChangeButtons() {
+    document.querySelectorAll('[data-plan]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const plan = btn.dataset.plan;
+        const label = plan === 'light' ? 'Light (¥600/月)' : 'Pro (¥960/月)';
+        Modal.confirm(
+          'プラン変更',
+          `<strong>${label}</strong> に変更しますか？<br>Stripe の決済ページに移動します。`,
+          async () => {
+            try {
+              const origin = location.origin + location.pathname;
+              const res = await API.subscribePlan(plan, `${origin}#plan`, `${origin}#plan`);
+              location.href = res.url;
+            } catch (err) {
+              Toast.error(err.message);
+            }
+          }
+        );
       });
     });
   },
