@@ -47,7 +47,7 @@ def _assign_default_odai(guild_id: int, limit: int):
 
 def _upsert_guild_plan(guild_id: int, plan: dict, customer_id: str | None, subscription_id: str | None):
     existing = db.query_one("SELECT id FROM guild_plans WHERE guild_id = %s", (guild_id,))
-    capacity = plan["custom_odai_base"] or 0
+    capacity = plan["custom_odai_base"]  # NULL = unlimited (enterprise)
     if existing:
         db.execute(
             "UPDATE guild_plans SET plan_id = %s, custom_odai_capacity = %s, "

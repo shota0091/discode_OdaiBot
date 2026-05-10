@@ -19,8 +19,26 @@ UPDATE plans SET
   custom_odai_max  = NULL
 WHERE name = 'pro';
 
+-- Enterprise: 容量無制限（NULL）
+UPDATE plans SET
+  custom_odai_base = NULL,
+  custom_odai_max  = NULL
+WHERE name = 'enterprise';
+
 -- 既存のFreeプランguildの容量を0→10に更新
 UPDATE guild_plans gp
 JOIN plans p ON gp.plan_id = p.id
 SET gp.custom_odai_capacity = 10
 WHERE p.name = 'free' AND gp.custom_odai_capacity = 0;
+
+-- 既存のProプランguildの容量がNULLの場合は1000に更新
+UPDATE guild_plans gp
+JOIN plans p ON gp.plan_id = p.id
+SET gp.custom_odai_capacity = 1000
+WHERE p.name = 'pro' AND gp.custom_odai_capacity IS NULL;
+
+-- 既存のEnterpriseプランguildの容量をNULL（無制限）に更新
+UPDATE guild_plans gp
+JOIN plans p ON gp.plan_id = p.id
+SET gp.custom_odai_capacity = NULL
+WHERE p.name = 'enterprise';
