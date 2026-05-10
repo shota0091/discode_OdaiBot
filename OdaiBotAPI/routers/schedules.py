@@ -3,10 +3,10 @@ import json
 
 from fastapi import APIRouter, Depends, HTTPException, Response
 
-from ..deps import db, get_current_user, require_admin, require_pro_plan
+from ..deps import db, get_current_user, require_admin
 from ..schemas import ScheduleRequest
 
-router = APIRouter(prefix="/api/guilds/{guild_id}/schedules", tags=["schedules"], dependencies=[Depends(require_pro_plan)])
+router = APIRouter(prefix="/api/guilds/{guild_id}/schedules", tags=["schedules"])
 
 
 def _deserialize(row: dict) -> dict:
